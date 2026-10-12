@@ -27,6 +27,10 @@
         --cubito-compare-header-h: 84px; /* the 3-line compare HUD, matching .cubito-diff-panel's top */
         --cubito-compare-child-rail-w: 200px;
         --cubito-compare-file-rail-w: 200px;
+        --cubito-system-feed-w: 0px;
+      }
+      body[data-system-panel='open'] {
+        --cubito-system-feed-w: 400px;
       }
       body[data-compare-panel='open'] {
         --cubito-compare-panel-width: clamp(520px, 52vw, 880px);
@@ -100,7 +104,8 @@
       .cubito-toast-stack {
         position: fixed;
         top: 14px;
-        right: 16px;
+        /* Toast lane: stays left of the docked side panels so it never covers their headers. */
+        right: calc(16px + var(--cubito-compare-panel-width) + var(--cubito-system-feed-w));
         z-index: 3;
         display: flex;
         flex-direction: column;
@@ -654,7 +659,7 @@
         position: absolute;
         left: 0;
         top: 84px; /* the 3-line HUD ends ~70px; reserved here so it survives the viewBox scale */
-        width: calc(100% - 400px);
+        width: calc(100% - var(--cubito-system-feed-w));
         max-width: 1040px;
         height: calc(100% - 84px);
         overflow-x: auto;
@@ -750,7 +755,7 @@
         right: 0;
         top: 0;
         bottom: 0;
-        width: 400px;
+        width: var(--cubito-system-feed-w);
         display: flex;
         flex-direction: column;
         background: var(--cubito-panel-surface);

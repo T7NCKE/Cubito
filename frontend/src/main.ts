@@ -429,6 +429,7 @@ store.subscribe((state) => {
   container.hidden = sceneReplacingOpen
   hudElement.hidden = keyboardBar.root.hidden = sceneReplacingOpen || compareOpen
   document.body.dataset.comparePanel = compareOpen ? 'open' : 'closed'
+  document.body.dataset.systemPanel = state.systemView.view === 'open' ? 'open' : 'closed'
   const box: CanvasBox = { hidden: sceneReplacingOpen, narrowed: compareOpen }
   // clientWidth inside remeasure() flushes style+layout, so the attribute above is already live.
   if (needsRemeasure(previousBox, box)) cubitoScene.remeasure()
