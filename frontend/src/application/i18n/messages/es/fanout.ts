@@ -5,6 +5,7 @@ export const esFanout: Record<keyof typeof enFanout, string> = {
   'fanout.titleBare': 'fan-out',
   'fanout.callout': 'fan-out · {count} × {agent}',
   'fanout.submit': 'lanzar camada',
+  'fanout.dismiss': 'cerrar',
   'fanout.cancel': 'cancelar',
   'fanout.counters':
     '{working} trabajando · {waiting} esperando · {spawning} naciendo · {ready} · {gates} · {questions}',

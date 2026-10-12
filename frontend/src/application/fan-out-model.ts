@@ -362,6 +362,21 @@ export function fanOutCounts(slice: FanOutSlice): FanOutCounts {
   return counts
 }
 
+/** Nothing left to watch: every child created or failed, no agent working/waiting, no pending
+ *  decision. An agent litter needs a first status per child — unpolled members read as idle. */
+export function fanOutSettled(slice: FanOutSlice): boolean {
+  if (slice.view !== 'running') return false
+  const decision = fanOutDecisionCounts(slice)
+  if (decision.gateCount > 0 || decision.questionCount > 0) return false
+  return slice.batch.every((entry) => {
+    if (entry.failed) return true
+    if (entry.worktreeId === null) return false
+    if (slice.fields.agent === 'none') return true
+    const status = slice.memberStatus[entry.worktreeId]
+    return status === 'idle'
+  })
+}
+
 /** Run-level gate/question counts for the HUD line (Change C-EXTENDED); zero outside `running`. */
 export function fanOutDecisionCounts(slice: FanOutSlice): {
   gateCount: number

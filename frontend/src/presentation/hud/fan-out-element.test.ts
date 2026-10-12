@@ -329,16 +329,33 @@ describe('createFanOutForm — keyboard', () => {
     expect(onSubmit).toHaveBeenCalledTimes(2)
   })
 
-  it('Escape dismisses the running panel too, but Enter never submits there', () => {
+  it('Escape dismisses the running panel (not cancel), and Enter never submits there', () => {
     const form = createFanOutForm(createFakeDocument())
     form.apply(runningModel())
     const onCancel = vi.fn()
+    const onDismiss = vi.fn()
     const onSubmit = vi.fn()
     form.onCancel(onCancel)
+    form.onDismiss(onDismiss)
     form.onSubmit(onSubmit)
     press(form, 'Enter', 'INPUT')
     expect(onSubmit).not.toHaveBeenCalled()
     press(form, 'Escape', 'INPUT')
-    expect(onCancel).toHaveBeenCalledOnce()
+    expect(onDismiss).toHaveBeenCalledOnce()
+    expect(onCancel).not.toHaveBeenCalled()
+  })
+
+  it('the dismiss button only shows in the running view and fires onDismiss', () => {
+    const form = createFanOutForm(createFakeDocument())
+    const root = form.element as unknown as FakeElement
+    const button = root.children.find((c) => c.className.includes('dismiss'))!
+    const onDismiss = vi.fn()
+    form.onDismiss(onDismiss)
+    form.apply(formModel())
+    expect(button.style.display).toBe('none')
+    form.apply(runningModel())
+    expect(button.style.display).toBe('')
+    button.fire('click')
+    expect(onDismiss).toHaveBeenCalledOnce()
   })
 })

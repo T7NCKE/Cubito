@@ -3,6 +3,7 @@ export const enFanout = {
   'fanout.titleBare': 'fan-out',
   'fanout.callout': 'fan-out · {count} × {agent}',
   'fanout.submit': 'launch litter',
+  'fanout.dismiss': 'dismiss',
   'fanout.cancel': 'cancel',
   'fanout.counters':
     '{working} working · {waiting} waiting · {spawning} spawning · {ready} · {gates} · {questions}',

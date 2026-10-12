@@ -62,6 +62,7 @@ type FakeForm = FanOutFormHandle & {
   emitPromptChange(prompt: string): void
   emitSubmit(): void
   emitCancel(): void
+  emitDismiss(): void
   emitResolveGate(gateId: string, resolution: string): Promise<void> | void
   emitAnswerQuestion(messageId: string, body: string): Promise<void> | void
 }
@@ -72,6 +73,7 @@ const createFakeForm = (): FakeForm => {
   let promptCb: ((prompt: string) => void) | null = null
   let submitCb: (() => void) | null = null
   let cancelCb: (() => void) | null = null
+  let dismissCb: (() => void) | null = null
   let resolveGateCb: ((gateId: string, resolution: string) => void | Promise<void>) | null = null
   let answerQuestionCb: ((messageId: string, body: string) => void | Promise<void>) | null = null
   const form: FakeForm = {
@@ -98,6 +100,11 @@ const createFakeForm = (): FakeForm => {
       cancelCb = cb
       return () => (cancelCb = null)
     },
+    onDismiss(cb) {
+      dismissCb = cb
+      return () => (dismissCb = null)
+    },
+    setVisible: vi.fn(),
     onResolveGate(cb) {
       resolveGateCb = cb
       return () => (resolveGateCb = null)
@@ -122,6 +129,9 @@ const createFakeForm = (): FakeForm => {
     },
     emitCancel() {
       cancelCb?.()
+    },
+    emitDismiss() {
+      dismissCb?.()
     },
     emitResolveGate(gateId, resolution) {
       return resolveGateCb?.(gateId, resolution)
@@ -743,5 +753,44 @@ describe('createFanOutController — gate resolve / question answer (Change F)',
     const lastModel = applied.mock.calls.at(-1)![0]
     expect(lastModel.gates).toEqual([])
     expect(lastModel.questions).toEqual([])
+  })
+})
+
+describe('createFanOutController — running panel visibility', () => {
+  const visibleCalls = (form: FakeForm) =>
+    (form.setVisible as ReturnType<typeof vi.fn>).mock.calls.map(([v]) => v)
+
+  it('shows a busy litter and hides it once dismissed, until the next run', () => {
+    const { controller, forms } = setup()
+    const graph = graphWithParent('repo-1')
+    controller.sync(runningLeaseSlice(), graph)
+    expect(visibleCalls(forms[0]!).at(-1)).toBe(true)
+    forms[0]!.emitDismiss()
+    expect(visibleCalls(forms[0]!).at(-1)).toBe(false)
+    controller.sync(runningLeaseSlice(), graph)
+    expect(visibleCalls(forms[0]!).at(-1)).toBe(false)
+    controller.sync(emptyFanOutSlice(), graph)
+    controller.sync(runningLeaseSlice(), graph)
+    expect(visibleCalls(forms.at(-1)!).at(-1)).toBe(true)
+  })
+
+  it('hides itself when an agent none litter has settled', () => {
+    const { controller, forms } = setup()
+    controller.sync(
+      runningLeaseSlice({ fields: { count: 1, agent: 'none', prompt: '' }, runId: null }),
+      graphWithParent('repo-1')
+    )
+    expect(visibleCalls(forms[0]!).at(-1)).toBe(false)
+  })
+
+  it('only shows on the island of the parent repo', () => {
+    let active: string | null = 'repo-2'
+    const { controller, forms } = setup({ activeRepoId: () => active })
+    const graph = graphWithParent('repo-1')
+    controller.sync(runningLeaseSlice(), graph)
+    expect(visibleCalls(forms[0]!).at(-1)).toBe(false)
+    active = 'repo-1'
+    controller.sync(runningLeaseSlice(), graph)
+    expect(visibleCalls(forms[0]!).at(-1)).toBe(true)
   })
 })

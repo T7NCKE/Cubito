@@ -1,6 +1,6 @@
 import { plainFailure } from '../../application/i18n/user-facing-error'
 import { describe, expect, it } from 'vitest'
-import { fanOutViewModel } from './fan-out-view-model'
+import { fanOutPanelVisible, fanOutViewModel } from './fan-out-view-model'
 import { emptyWorktreeGraph } from '../../domain/worktree-graph/types'
 import type { WorktreeGraph, WorktreeNode } from '../../domain/worktree-graph/types'
 import { inertActivity } from '../../domain/worktree-graph/node-activity'
@@ -298,5 +298,65 @@ describe('fanOutViewModel — form title', () => {
     const model = fanOutViewModel(formSlice())
     if (model?.view !== 'form') throw new Error('expected form')
     expect(model.title).toBe('fan-out')
+  })
+})
+
+describe('fanOutPanelVisible', () => {
+  const settled: FanOutSlice = {
+    view: 'running',
+    parentId: 'w1',
+    fields: { count: 1, agent: 'none', prompt: '' },
+    repoSelector: 'id:repo-a',
+    batch: [{ mutationId: 'm', worktreeId: 'c1', failed: false, dispatchId: null, taskId: null }],
+    memberStatus: {},
+    runId: null
+  }
+  const busy: FanOutSlice = {
+    ...settled,
+    fields: { count: 1, agent: 'claude', prompt: 'x' },
+    memberStatus: { c1: 'working' }
+  }
+  const failed: FanOutSlice = {
+    ...settled,
+    batch: [{ mutationId: 'm', worktreeId: null, failed: true, dispatchId: null, taskId: null }]
+  }
+  const parent: WorktreeNode = {
+    id: 'w1',
+    repoId: 'repo-a',
+    branch: 'refs/heads/main',
+    path: '/p',
+    status: 'in-progress',
+    isMain: true,
+    kind: 'root',
+    parentId: null,
+    childIds: [],
+    activity: inertActivity()
+  }
+  const graph: WorktreeGraph = {
+    nodes: new Map([['w1', parent]]),
+    edges: [],
+    rootIds: ['w1']
+  }
+
+  it('hides a settled litter on its own', () => {
+    expect(fanOutPanelVisible(settled, graph, 'repo-a', false)).toBe(false)
+  })
+
+  it('keeps a litter with live work or failures on screen', () => {
+    expect(fanOutPanelVisible(busy, graph, 'repo-a', false)).toBe(true)
+    expect(fanOutPanelVisible(failed, graph, 'repo-a', false)).toBe(true)
+  })
+
+  it('is scoped to the repo of its parent', () => {
+    expect(fanOutPanelVisible(busy, graph, 'repo-b', false)).toBe(false)
+    expect(fanOutPanelVisible(busy, graph, null, false)).toBe(true)
+  })
+
+  it('honours a manual dismissal, and always shows the form', () => {
+    expect(fanOutPanelVisible(busy, graph, 'repo-a', true)).toBe(false)
+    expect(fanOutPanelVisible(formSlice(), graph, 'repo-b', true)).toBe(true)
+    expect(fanOutPanelVisible({ view: 'closed', repoSelector: null }, graph, null, false)).toBe(
+      false
+    )
   })
 })

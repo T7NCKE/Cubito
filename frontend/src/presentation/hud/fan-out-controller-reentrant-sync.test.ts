@@ -43,6 +43,8 @@ const createFakeForm = (): FakeForm => {
     onPromptChange: () => () => {},
     onSubmit: () => () => {},
     onCancel: () => () => {},
+    onDismiss: () => () => {},
+    setVisible: () => {},
     onResolveGate: () => () => {},
     onAnswerQuestion: () => () => {},
     focusFirstField: vi.fn(),

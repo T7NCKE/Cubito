@@ -2,6 +2,7 @@ import {
   MIN_FANOUT,
   MAX_FANOUT,
   fanOutCounts,
+  fanOutSettled,
   fanOutDecisionCounts
 } from '../../application/fan-out-model'
 import type { FanOutSlice } from '../../application/fan-out-model'
@@ -107,4 +108,21 @@ export function fanOutViewModel(
     questions: pendingQuestionsViewModel(visibility),
     failures: fanOutBatchFailures(slice)
   }
+}
+
+/** Whether the HUD panel is on screen: the form always; a running litter until it settles
+ *  cleanly, the user dismisses it, or another repo's island is active. */
+export function fanOutPanelVisible(
+  slice: FanOutSlice,
+  graph: WorktreeGraph,
+  activeRepoId: string | null,
+  dismissed: boolean
+): boolean {
+  if (slice.view !== 'running') return slice.view === 'form'
+  if (dismissed) return false
+  const parentRepo = graph.nodes.get(slice.parentId)?.repoId
+  if (activeRepoId !== null && parentRepo !== undefined && parentRepo !== activeRepoId) {
+    return false
+  }
+  return !(fanOutSettled(slice) && fanOutBatchFailures(slice).length === 0)
 }

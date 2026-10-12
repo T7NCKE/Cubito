@@ -12,6 +12,7 @@ import {
   fanOutDecisionCounts,
   fanOutMemberIds,
   fanOutParentId,
+  fanOutSettled,
   fanOutObjectiveText,
   fanOutSubmitBlocker,
   isFailedDispatch,
@@ -964,5 +965,56 @@ describe('composeFanOutGraph', () => {
     const twice = composeFanOutGraph(once, running)
     expect([...twice.nodes.keys()].sort()).toEqual([...once.nodes.keys()].sort())
     expect(twice.nodes.get('w1')?.childIds).toEqual(once.nodes.get('w1')?.childIds)
+  })
+})
+
+describe('fanOutSettled', () => {
+  const running = (
+    agent: 'none' | 'claude',
+    batch: FanOutBatchEntry[],
+    memberStatus: Record<string, 'idle' | 'working' | 'waiting-input'> = {}
+  ): FanOutSlice => ({
+    view: 'running',
+    parentId: 'w1',
+    fields: { count: batch.length, agent, prompt: '' },
+    repoSelector: 'id:r',
+    batch,
+    memberStatus,
+    runId: null
+  })
+  const entry = (id: string, worktreeId: string | null, failed = false): FanOutBatchEntry => ({
+    mutationId: id,
+    worktreeId,
+    failed,
+    dispatchId: null,
+    taskId: null
+  })
+
+  it('is false for anything that is not running', () => {
+    expect(fanOutSettled(emptyFanOutSlice())).toBe(false)
+  })
+
+  it('an agent none litter settles as soon as every child is created or failed', () => {
+    expect(fanOutSettled(running('none', [entry('a', 'c1'), entry('b', null)]))).toBe(false)
+    expect(fanOutSettled(running('none', [entry('a', 'c1'), entry('b', null, true)]))).toBe(true)
+  })
+
+  it('an agent litter waits for a first status per child and for the work to finish', () => {
+    const batch = [entry('a', 'c1'), entry('b', 'c2')]
+    expect(fanOutSettled(running('claude', batch))).toBe(false)
+    expect(fanOutSettled(running('claude', batch, { c1: 'idle', c2: 'working' }))).toBe(false)
+    expect(fanOutSettled(running('claude', batch, { c1: 'idle', c2: 'waiting-input' }))).toBe(false)
+    expect(fanOutSettled(running('claude', batch, { c1: 'idle', c2: 'idle' }))).toBe(true)
+  })
+
+  it('stays unsettled while a gate or question is pending', () => {
+    const slice = running('none', [entry('a', 'c1')])
+    if (slice.view !== 'running') throw new Error('expected running')
+    const withGate = reduceFanOut(slice, {
+      type: 'gates-updated',
+      gates: [gateRow({ id: 'gate-1', taskId: 'task-1' })]
+    })
+    expect(fanOutDecisionCounts(withGate).gateCount).toBeGreaterThan(0)
+    expect(fanOutSettled(withGate)).toBe(false)
   })
 })

@@ -16,7 +16,7 @@ import { runCamadaLeaseSubmit } from '../../application/fan-out-lease-submit'
 import type { FanOutFormHandle } from './fan-out-element'
 import { createSetupHintTracker } from '../../application/repo-setup-hint'
 import { repoSetupSaved } from '../../application/repo-setup-saved'
-import { fanOutViewModel } from './fan-out-view-model'
+import { fanOutPanelVisible, fanOutViewModel } from './fan-out-view-model'
 
 /** listRepos/createWorktree/listWorktreePs for the v1 loop and the member poll it owns, plus
  *  the 3 lease verbs the Change B path calls — one port satisfies both, so rebindGateway can
@@ -78,6 +78,8 @@ export function createFanOutController(deps: FanOutControllerDeps): FanOutContro
   let previousView: FanOutSlice['view'] = 'closed'
   let repoFetchInFlight = false
   let syncGeneration = 0
+  // UI-only: dismissing the running panel hides it without ending the litter (compare needs it).
+  let dismissed = false
 
   const setupHints = createSetupHintTracker({
     probe: (repoSelector) => gateway.repoSetupCommand(repoSelector),
@@ -122,6 +124,10 @@ export function createFanOutController(deps: FanOutControllerDeps): FanOutContro
       created.onPromptChange((prompt) => deps.dispatch({ type: 'update-prompt', prompt }))
       created.onSubmit(() => void handleSubmit())
       created.onCancel(() => deps.dispatch({ type: 'cancel' }))
+      created.onDismiss(() => {
+        dismissed = true
+        if (currentGraph) controller.sync(currentSlice, currentGraph)
+      })
       created.onResolveGate((gateId, resolution) => handleResolveGate(gateId, resolution))
       created.onAnswerQuestion((messageId, body) => handleAnswerQuestion(messageId, body))
       deps.hud.appendChild(created.element)
@@ -235,8 +241,10 @@ export function createFanOutController(deps: FanOutControllerDeps): FanOutContro
         setupHints.reset()
         deps.memberPoll.stop()
         previousView = 'closed'
+        dismissed = false
         return
       }
+      if (fanOut.view !== 'running') dismissed = false
       if (fanOut.view === 'form') setupHints.ensure(fanOut.repoSelector)
       const model = fanOutViewModel(
         fanOut,
@@ -245,6 +253,7 @@ export function createFanOutController(deps: FanOutControllerDeps): FanOutContro
       )
       const mounted = mount()
       if (model !== null) mounted.apply(model)
+      mounted.setVisible(fanOutPanelVisible(fanOut, graph, activeRepoId(), dismissed))
       // display:none force-blurs a focused descendant, mirroring project-selector's focusPath()
       // and spawn-form's focusFirstField() fix on the closed -> form transition.
       if (previousView === 'closed' && fanOut.view === 'form') mounted.focusFirstField()

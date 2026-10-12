@@ -14,6 +14,9 @@ export type FanOutFormHandle = {
   onPromptChange(callback: (prompt: string) => void): () => void
   onSubmit(callback: () => void): () => void
   onCancel(callback: () => void): () => void
+  /** Running panel only: hide it without touching the litter. */
+  onDismiss(callback: () => void): () => void
+  setVisible(visible: boolean): void
   onResolveGate(callback: (gateId: string, resolution: string) => void | Promise<void>): () => void
   onAnswerQuestion(callback: (messageId: string, body: string) => void | Promise<void>): () => void
   focusFirstField(): void
@@ -55,6 +58,10 @@ export function createFanOutForm(doc: Document = document): FanOutFormHandle {
   cancelButton.className = 'cubito-fanout-form__cancel'
   cancelButton.textContent = t('fanout.cancel')
 
+  const dismissButton = doc.createElement('button')
+  dismissButton.className = 'cubito-fanout-form__dismiss'
+  dismissButton.textContent = t('fanout.dismiss')
+
   const title = doc.createElement('div')
   title.className = 'cubito-fanout-form__title'
 
@@ -85,6 +92,7 @@ export function createFanOutForm(doc: Document = document): FanOutFormHandle {
     submitButton,
     cancelButton,
     callout,
+    dismissButton,
     counters,
     failuresList
   ]) {
@@ -97,6 +105,7 @@ export function createFanOutForm(doc: Document = document): FanOutFormHandle {
   let promptChangeCallback: ((prompt: string) => void) | null = null
   let submitCallback: (() => void) | null = null
   let cancelCallback: (() => void) | null = null
+  let dismissCallback: (() => void) | null = null
 
   countInput.addEventListener('input', (event) => {
     const value = Number((event.target as unknown as { value: string }).value)
@@ -110,6 +119,7 @@ export function createFanOutForm(doc: Document = document): FanOutFormHandle {
   })
   submitButton.addEventListener('click', () => submitCallback?.())
   cancelButton.addEventListener('click', () => cancelCallback?.())
+  dismissButton.addEventListener('click', () => dismissCallback?.())
 
   // Same keys as the spawn form; the running panel only honours Escape (it has no submit).
   let formVisible = true
@@ -121,8 +131,9 @@ export function createFanOutForm(doc: Document = document): FanOutFormHandle {
     })
     if (action === null || (action === 'submit' && !formVisible)) return
     keyEvent.stopPropagation()
-    if (action === 'cancel') cancelCallback?.()
-    else submitCallback?.()
+    if (action === 'submit') submitCallback?.()
+    else if (formVisible) cancelCallback?.()
+    else dismissCallback?.()
   })
 
   const showFields = (visible: boolean): void => {
@@ -140,6 +151,7 @@ export function createFanOutForm(doc: Document = document): FanOutFormHandle {
   const showRunning = (visible: boolean): void => {
     const display = visible ? '' : 'none'
     callout.style.display = display
+    dismissButton.style.display = display
     counters.style.display = display
     failuresList.style.display = display
     gateList.element.style.display = display
@@ -206,6 +218,13 @@ export function createFanOutForm(doc: Document = document): FanOutFormHandle {
     onCancel(callback) {
       cancelCallback = callback
       return () => (cancelCallback = null)
+    },
+    onDismiss(callback) {
+      dismissCallback = callback
+      return () => (dismissCallback = null)
+    },
+    setVisible(visible) {
+      root.hidden = !visible
     },
     onResolveGate(callback) {
       return gateList.onResolveGate(callback)
