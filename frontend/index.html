@@ -917,13 +917,19 @@
         font-size: 12px;
         pointer-events: auto;
       }
+      /* One column as wide as the longest line: the container scrolls, so a long line never wraps
+         under the gutters and every row's tint spans the full scroll width. */
       .cubito-diff-panel__lines {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: minmax(100%, max-content);
+        overflow-x: auto;
+      }
+      .cubito-diff-panel__lines > div {
+        display: grid;
+        grid-template-columns: 60px 60px max-content;
       }
       .diff-panel__gutter {
-        display: inline-block;
-        width: 44px;
+        box-sizing: border-box;
         padding: 0 8px;
         text-align: right;
         color: var(--cubito-text-faint);
