@@ -77,10 +77,15 @@ export const connectionDotColor = (connection: ConnectionState): ConnectionDotTo
 
 /** Terminal-aware chips (design Area 8): no terminal -> `[t]`; scene placement -> pin/tab/exit;
  *  hud placement -> its escena/close counterparts. Reflects `TerminalsState` only, no DOM. */
-const terminalChips = (terminals: TerminalsState, selectedId: unknown): readonly HudChip[] => {
+const terminalChips = (
+  terminals: TerminalsState,
+  selectedId: unknown,
+  connected: boolean
+): readonly HudChip[] => {
   const panel = terminals.activePanel
   if (!panel) {
-    return selectedId === null ? [] : [chip('t', 'keys.terminal')]
+    // Why: `t` needs a live host — advertising it in demo/offline mode promises a dead key.
+    return selectedId === null || !connected ? [] : [chip('t', 'keys.terminal')]
   }
   const tabs = terminals.byNode.get(panel.nodeId) ?? []
   if (panel.placement === 'scene') {
@@ -152,6 +157,13 @@ export function hudModel(state: SceneState, platform: { isMac: boolean }): HudMo
       state.sync.state === 'error' && state.connection.state === 'connected'
         ? state.sync.message
         : null,
-    chips: [...chipsFor(platform), ...terminalChips(state.terminals, state.selection.selectedId)]
+    chips: [
+      ...chipsFor(platform),
+      ...terminalChips(
+        state.terminals,
+        state.selection.selectedId,
+        state.connection.state === 'connected'
+      )
+    ]
   }
 }

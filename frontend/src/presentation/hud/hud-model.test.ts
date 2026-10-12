@@ -218,9 +218,20 @@ describe('hudModel', () => {
     expect(model.chips.some((chip) => chip.key === 't')).toBe(false)
   })
 
-  it('adds a [t] terminal chip when a node is selected and no terminal is open', () => {
-    const model = hudModel(baseState({ selection: { selectedId: 'w1' } }), { isMac: true })
+  it('adds a [t] terminal chip when connected, a node is selected and no terminal is open', () => {
+    const model = hudModel(
+      baseState({
+        selection: { selectedId: 'w1' },
+        connection: { state: 'connected', runtimeId: 'r1' }
+      }),
+      { isMac: true }
+    )
     expect(model.chips).toContainEqual({ key: 't', description: 'terminal' })
+  })
+
+  it('hides the [t] terminal chip without a connection (demo mode: t does nothing)', () => {
+    const model = hudModel(baseState({ selection: { selectedId: 'w1' } }), { isMac: true })
+    expect(model.chips.some((chip) => chip.key === 't')).toBe(false)
   })
 
   it('shows pin + exit chips (no tab chip) for a single terminal open in scene placement', () => {

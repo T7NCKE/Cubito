@@ -87,7 +87,10 @@ describe('HUD in English', () => {
   })
 
   it('describes the keyboard chips in English', () => {
-    const chips = hudModel(state({ selection: { selectedId: 'a' } }), { isMac: false }).chips
+    const chips = hudModel(
+      state({ selection: { selectedId: 'a' }, connection: { state: 'connected', runtimeId: 'r' } }),
+      { isMac: false }
+    ).chips
     expect(chips.map((chip) => chip.description)).toEqual([
       'navigate',
       'focus',
