@@ -6,8 +6,11 @@ import {
 import type { GitRuntimeOptions } from './git-runtime-options'
 import { gitOptionsForWorktree } from './git-runtime-options'
 import { mergeTreeWriteTree } from './merge-tree-write-tree'
-import type { ParentWorkingTreeSyncResult } from './merge-winner-sync'
-import { syncParentWorkingTree } from './merge-winner-sync'
+import {
+  commitWinnerMergeAtomically,
+  type MergeWinnerBlocked,
+  type ParentWorkingTreeSyncResult
+} from '../../shared/merge-winner-atomic-commit'
 import type { ParentDependencySetupResult } from './merge-winner-dependency-setup'
 import { gitExecFileAsync } from './runner'
 import { runWithGitReadCacheInvalidation } from './status'
@@ -24,12 +27,15 @@ export type MergeWinnerResult =
       dependencySetup?: ParentDependencySetupResult
     }
   | { outcome: 'conflict'; files: string[] }
+  | MergeWinnerBlocked
+  /** The parent already contains the winner; commitOid is the untouched parent tip. */
+  | { outcome: 'already-merged'; commitOid: string }
 
 /**
  * Headless-merges the winner branch tip into the parent branch tip. Sibling
  * worktrees share one object DB, so winnerTip is reachable from parentPath.
- * Conflict -> zero mutation. Clean -> 2-parent commit-tree + a guarded
- * update-ref move of the parent branch, under the worktree op lock.
+ * Conflict, blocked sync or already-merged -> zero mutation. Clean -> 2-parent
+ * commit-tree + a guarded update-ref move of the parent branch, under the worktree op lock.
  */
 export async function mergeWinnerIntoParent(
   parentPath: string,
@@ -41,6 +47,9 @@ export async function mergeWinnerIntoParent(
   const parentTip = await resolveRefOid(parentPath, 'HEAD', options)
   const winnerTip = await resolveRefOid(winnerPath, 'HEAD', options)
   const mergeBase = await resolveMergeBase(parentPath, parentTip, winnerTip, options)
+  if (mergeBase === winnerTip) {
+    return { outcome: 'already-merged', commitOid: parentTip }
+  }
 
   const { treeOid, conflictedFiles } = await mergeTreeWriteTree(
     parentPath,
@@ -55,41 +64,17 @@ export async function mergeWinnerIntoParent(
 
   return runWithGitWorktreeOperationLock(parentPath, options.signal, () =>
     runWithGitReadCacheInvalidation(() =>
-      commitAndMoveParentBranch(
-        parentPath,
-        parentBranch,
-        treeOid,
-        parentTip,
-        winnerTip,
-        message,
-        options
+      commitWinnerMergeAtomically(
+        (args) => gitExecFileAsync(args, gitOptionsForWorktree(parentPath, options)),
+        {
+          parentRef: `refs/heads/${parentBranch}`,
+          parentTip,
+          winnerTip,
+          treeOid,
+          message,
+          syncWorkingTree: options.syncWorkingTree === true
+        }
       )
     )
   )
-}
-
-async function commitAndMoveParentBranch(
-  parentPath: string,
-  parentBranch: string,
-  treeOid: string,
-  parentTip: string,
-  winnerTip: string,
-  message: string,
-  options: MergeWinnerOptions
-): Promise<MergeWinnerResult> {
-  const { stdout } = await gitExecFileAsync(
-    ['commit-tree', treeOid, '-p', parentTip, '-p', winnerTip, '-m', message],
-    gitOptionsForWorktree(parentPath, options)
-  )
-  const commitOid = stdout.trim()
-  // Why: old-value guard makes the ref move fail loudly if parentTip moved underneath us.
-  await gitExecFileAsync(
-    ['update-ref', `refs/heads/${parentBranch}`, commitOid, parentTip],
-    gitOptionsForWorktree(parentPath, options)
-  )
-  if (!options.syncWorkingTree) {
-    return { outcome: 'clean', commitOid }
-  }
-  const workingTree = await syncParentWorkingTree(parentPath, parentTip, treeOid, options)
-  return { outcome: 'clean', commitOid, workingTree }
 }

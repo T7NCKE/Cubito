@@ -127,12 +127,13 @@ describe('mergeWinnerIntoParentRelayOp with syncWorkingTree', () => {
     expect(await readFile(path.join(parentDir, 'winner-only.txt'), 'utf8')).toBe('winner\n')
   })
 
-  it('still moves the parent ref but skips the sync when the parent is dirty', async () => {
+  it('blocks without moving the ref when an untracked parent file would be overwritten', async () => {
     const { parentDir, winnerDir } = await createParentAndWinnerWorktrees()
-    await writeFile(path.join(winnerDir, 'winner-only.txt'), 'winner\n')
+    await writeFile(path.join(winnerDir, 'new.txt'), 'winner\n')
     gitSync(winnerDir, ['add', '-A'])
     gitSync(winnerDir, ['commit', '-q', '-m', 'winner change'])
-    await writeFile(path.join(parentDir, 'base.txt'), 'dirty\n')
+    await writeFile(path.join(parentDir, 'new.txt'), 'untracked\n')
+    const parentTipBefore = gitSync(parentDir, ['rev-parse', 'refs/heads/parent-branch'])
 
     const result = await mergeWinnerIntoParentRelayOp(
       relayGit,
@@ -143,13 +144,36 @@ describe('mergeWinnerIntoParentRelayOp with syncWorkingTree', () => {
       true
     )
 
-    expect(result.outcome).toBe('clean')
-    if (result.outcome !== 'clean') {
-      throw new Error('expected clean outcome')
-    }
-    expect(result.workingTree).toEqual({ status: 'skipped', reason: 'dirty' })
-    expect(gitSync(parentDir, ['rev-parse', 'refs/heads/parent-branch'])).toBe(result.commitOid)
-    expect(await readFile(path.join(parentDir, 'base.txt'), 'utf8')).toBe('dirty\n')
+    expect(result).toEqual({
+      outcome: 'blocked',
+      reason: 'untracked-overwrite',
+      paths: ['new.txt']
+    })
+    expect(gitSync(parentDir, ['rev-parse', 'refs/heads/parent-branch'])).toBe(parentTipBefore)
+    expect(gitSync(parentDir, ['status', '--porcelain'])).toBe('?? new.txt')
+  })
+
+  it('returns already-merged without a new commit on a repeated merge', async () => {
+    const { parentDir, winnerDir } = await createParentAndWinnerWorktrees()
+    await writeFile(path.join(winnerDir, 'winner-only.txt'), 'winner\n')
+    gitSync(winnerDir, ['add', '-A'])
+    gitSync(winnerDir, ['commit', '-q', '-m', 'winner change'])
+    const merge = (): ReturnType<typeof mergeWinnerIntoParentRelayOp> =>
+      mergeWinnerIntoParentRelayOp(
+        relayGit,
+        new GitCapabilityCache(),
+        parentDir,
+        winnerDir,
+        'Merge winner into parent',
+        true
+      )
+    await merge()
+    const tipAfterFirst = gitSync(parentDir, ['rev-parse', 'refs/heads/parent-branch'])
+
+    const second = await merge()
+
+    expect(second).toEqual({ outcome: 'already-merged', commitOid: tipAfterFirst })
+    expect(gitSync(parentDir, ['rev-parse', 'refs/heads/parent-branch'])).toBe(tipAfterFirst)
   })
 
   it('omits the workingTree field when syncWorkingTree is not requested', async () => {

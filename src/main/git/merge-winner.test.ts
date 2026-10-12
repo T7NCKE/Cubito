@@ -35,6 +35,12 @@ async function createParentAndWinnerWorktrees(): Promise<{ parentDir: string; wi
   return { parentDir, winnerDir }
 }
 
+async function commitFile(worktree: string, file: string, content: string): Promise<void> {
+  await writeFile(path.join(worktree, file), content)
+  git(worktree, ['add', '-A'])
+  git(worktree, ['commit', '-q', '-m', `commit ${file}`])
+}
+
 afterEach(async () => {
   invalidateGitReadCaches()
   await Promise.all(tempRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
@@ -118,23 +124,67 @@ describe('mergeWinnerIntoParent with syncWorkingTree', () => {
     expect(await readFile(path.join(parentDir, 'winner-only.txt'), 'utf8')).toBe('winner\n')
   })
 
-  it('still moves the parent ref but skips the sync when the parent is dirty', async () => {
+  it('syncs and carries over a dirty parent file the merge does not touch', async () => {
     const { parentDir, winnerDir } = await createParentAndWinnerWorktrees()
-    await writeFile(path.join(winnerDir, 'winner-only.txt'), 'winner\n')
-    git(winnerDir, ['add', '-A'])
-    git(winnerDir, ['commit', '-q', '-m', 'winner change'])
+    await commitFile(winnerDir, 'winner-only.txt', 'winner\n')
     await writeFile(path.join(parentDir, 'base.txt'), 'dirty\n')
 
     const result = await mergeWinnerIntoParent(parentDir, winnerDir, 'Merge winner into parent', {
       syncWorkingTree: true
     })
 
-    expect(result.outcome).toBe('clean')
-    if (result.outcome !== 'clean') {
-      throw new Error('expected clean outcome')
-    }
-    expect(result.workingTree).toEqual({ status: 'skipped', reason: 'dirty' })
-    expect(git(parentDir, ['rev-parse', 'refs/heads/parent-branch'])).toBe(result.commitOid)
+    expect(result).toMatchObject({ outcome: 'clean', workingTree: { status: 'synced' } })
+    expect(await readFile(path.join(parentDir, 'base.txt'), 'utf8')).toBe('dirty\n')
+    expect(git(parentDir, ['status', '--porcelain'])).toBe('M base.txt')
+  })
+
+  it('blocks without moving the ref when an untracked parent file would be overwritten', async () => {
+    const { parentDir, winnerDir } = await createParentAndWinnerWorktrees()
+    await commitFile(winnerDir, 'new.txt', 'winner\n')
+    await writeFile(path.join(parentDir, 'new.txt'), 'untracked\n')
+    const parentTipBefore = git(parentDir, ['rev-parse', 'refs/heads/parent-branch'])
+
+    const result = await mergeWinnerIntoParent(parentDir, winnerDir, 'Merge winner into parent', {
+      syncWorkingTree: true
+    })
+
+    expect(result).toEqual({
+      outcome: 'blocked',
+      reason: 'untracked-overwrite',
+      paths: ['new.txt']
+    })
+    expect(git(parentDir, ['rev-parse', 'refs/heads/parent-branch'])).toBe(parentTipBefore)
+    expect(git(parentDir, ['status', '--porcelain'])).toBe('?? new.txt')
+    expect(await readFile(path.join(parentDir, 'new.txt'), 'utf8')).toBe('untracked\n')
+  })
+
+  it('merges and syncs once the blocking untracked file is moved away', async () => {
+    const { parentDir, winnerDir } = await createParentAndWinnerWorktrees()
+    await commitFile(winnerDir, 'new.txt', 'winner\n')
+    await writeFile(path.join(parentDir, 'new.txt'), 'untracked\n')
+    await mergeWinnerIntoParent(parentDir, winnerDir, 'Merge', { syncWorkingTree: true })
+    await rm(path.join(parentDir, 'new.txt'))
+
+    const result = await mergeWinnerIntoParent(parentDir, winnerDir, 'Merge', {
+      syncWorkingTree: true
+    })
+
+    expect(result).toMatchObject({ outcome: 'clean', workingTree: { status: 'synced' } })
+    expect(git(parentDir, ['status', '--porcelain'])).toBe('')
+  })
+
+  it('blocks without moving the ref when a dirty parent file is one the merge changes', async () => {
+    const { parentDir, winnerDir } = await createParentAndWinnerWorktrees()
+    await commitFile(winnerDir, 'base.txt', 'winner-version\n')
+    await writeFile(path.join(parentDir, 'base.txt'), 'dirty\n')
+    const parentTipBefore = git(parentDir, ['rev-parse', 'refs/heads/parent-branch'])
+
+    const result = await mergeWinnerIntoParent(parentDir, winnerDir, 'Merge winner into parent', {
+      syncWorkingTree: true
+    })
+
+    expect(result).toEqual({ outcome: 'blocked', reason: 'dirty-parent', paths: ['base.txt'] })
+    expect(git(parentDir, ['rev-parse', 'refs/heads/parent-branch'])).toBe(parentTipBefore)
     expect(await readFile(path.join(parentDir, 'base.txt'), 'utf8')).toBe('dirty\n')
   })
 
@@ -165,5 +215,24 @@ describe('mergeWinnerIntoParent with syncWorkingTree', () => {
 
     expect(result).toEqual({ outcome: 'conflict', files: ['base.txt'] })
     expect('workingTree' in result).toBe(false)
+  })
+})
+
+describe('mergeWinnerIntoParent idempotency', () => {
+  it('returns already-merged without a new commit when the parent already contains the winner', async () => {
+    const { parentDir, winnerDir } = await createParentAndWinnerWorktrees()
+    await commitFile(winnerDir, 'winner-only.txt', 'winner\n')
+    const first = await mergeWinnerIntoParent(parentDir, winnerDir, 'Merge', {
+      syncWorkingTree: true
+    })
+    const tipAfterFirst = git(parentDir, ['rev-parse', 'refs/heads/parent-branch'])
+
+    const second = await mergeWinnerIntoParent(parentDir, winnerDir, 'Merge', {
+      syncWorkingTree: true
+    })
+
+    expect(first.outcome).toBe('clean')
+    expect(second).toEqual({ outcome: 'already-merged', commitOid: tipAfterFirst })
+    expect(git(parentDir, ['rev-parse', 'refs/heads/parent-branch'])).toBe(tipAfterFirst)
   })
 })

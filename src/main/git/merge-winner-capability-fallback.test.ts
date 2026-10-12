@@ -34,6 +34,8 @@ async function createParentAndWinnerWorktrees(): Promise<{ parentDir: string; wi
   const winnerDir = path.join(root, 'winner')
   git(repo, ['worktree', 'add', '-q', '-b', 'parent-branch', parentDir])
   git(repo, ['worktree', 'add', '-q', '-b', 'winner-branch', winnerDir])
+  // Why: a winner with no commits of its own short-circuits as already-merged before merge-tree.
+  git(winnerDir, ['commit', '-q', '--allow-empty', '-m', 'winner'])
   return { parentDir, winnerDir }
 }
 

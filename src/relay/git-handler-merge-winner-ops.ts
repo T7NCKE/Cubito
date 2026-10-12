@@ -3,16 +3,16 @@ import {
   isUnsupportedMergeTreeMergeBaseError,
   isUnsupportedMergeTreeWriteTreeError
 } from '../shared/git-merge-tree-capability'
+import {
+  commitWinnerMergeAtomically,
+  type MergeWinnerCommitResult
+} from '../shared/merge-winner-atomic-commit'
 import type { GitExec } from './git-handler-ops'
 
-export type RelayParentWorkingTreeSyncResult =
-  | { status: 'synced' }
-  | { status: 'skipped'; reason: 'dirty' }
-  | { status: 'failed'; message: string }
-
 export type RelayMergeWinnerResult =
-  | { outcome: 'clean'; commitOid: string; workingTree?: RelayParentWorkingTreeSyncResult }
+  | MergeWinnerCommitResult
   | { outcome: 'conflict'; files: string[] }
+  | { outcome: 'already-merged'; commitOid: string }
 
 /**
  * Raw-git reimplementation of src/main/git/merge-winner.ts for the relay
@@ -32,6 +32,9 @@ export async function mergeWinnerIntoParentRelayOp(
   const winnerTip = await resolveHeadOid(git, winnerPath)
   const { stdout: mergeBaseOut } = await git(['merge-base', parentTip, winnerTip], parentPath)
   const mergeBase = mergeBaseOut.trim()
+  if (mergeBase === winnerTip) {
+    return { outcome: 'already-merged', commitOid: parentTip }
+  }
 
   const { treeOid, conflictedFiles } = await runMergeTreeWriteTree(
     git,
@@ -45,42 +48,14 @@ export async function mergeWinnerIntoParentRelayOp(
     return { outcome: 'conflict', files: conflictedFiles }
   }
 
-  const { stdout: commitOidOut } = await git(
-    ['commit-tree', treeOid, '-p', parentTip, '-p', winnerTip, '-m', message],
-    parentPath
-  )
-  const commitOid = commitOidOut.trim()
-  // Why: old-value guard makes the ref move fail loudly if parentTip moved underneath us.
-  await git(['update-ref', `refs/heads/${parentBranch}`, commitOid, parentTip], parentPath)
-  if (!syncWorkingTree) {
-    return { outcome: 'clean', commitOid }
-  }
-  const workingTree = await syncParentWorkingTreeRelayOp(git, parentPath, parentTip, treeOid)
-  return { outcome: 'clean', commitOid, workingTree }
-}
-
-/**
- * Mirrors src/main/git/merge-winner-sync.ts's syncParentWorkingTree — never throws, a failure
- * here must not roll back the already-moved parent ref.
- */
-async function syncParentWorkingTreeRelayOp(
-  git: GitExec,
-  parentPath: string,
-  parentTip: string,
-  newTreeOid: string
-): Promise<RelayParentWorkingTreeSyncResult> {
-  // Why: pinned to parentTip explicitly (not implicit HEAD) — the parent branch ref has
-  // already moved past parentTip by the time this runs.
-  const { stdout: trackedDiff } = await git(['diff', '--name-only', parentTip, '--'], parentPath)
-  if (trackedDiff.trim()) {
-    return { status: 'skipped', reason: 'dirty' }
-  }
-  try {
-    await git(['read-tree', '-u', '-m', parentTip, newTreeOid], parentPath)
-    return { status: 'synced' }
-  } catch (error) {
-    return { status: 'failed', message: error instanceof Error ? error.message : String(error) }
-  }
+  return commitWinnerMergeAtomically((args) => git(args, parentPath), {
+    parentRef: `refs/heads/${parentBranch}`,
+    parentTip,
+    winnerTip,
+    treeOid,
+    message,
+    syncWorkingTree
+  })
 }
 
 async function resolveCurrentBranch(git: GitExec, worktreePath: string): Promise<string> {

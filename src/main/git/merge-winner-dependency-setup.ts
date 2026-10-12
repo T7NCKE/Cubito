@@ -4,7 +4,7 @@ import { parseOrcaYaml, runHook } from '../hooks'
 import { getEffectiveHooksFromConfig, getEffectiveSetupRunPolicy } from '../effective-hook-config'
 import type { GitRuntimeOptions } from './git-runtime-options'
 import { gitOptionsForWorktree } from './git-runtime-options'
-import type { ParentWorkingTreeSyncResult } from './merge-winner-sync'
+import type { ParentWorkingTreeSyncResult } from '../../shared/merge-winner-atomic-commit'
 import { gitExecFileAsync } from './runner'
 
 /** The parent's setup hook was kicked off in the background; absent when it did not apply. */
