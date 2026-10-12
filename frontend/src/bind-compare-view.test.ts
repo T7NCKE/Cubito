@@ -166,6 +166,28 @@ describe('createCompareViewBinder — camera height push/pop', () => {
   })
 })
 
+describe('createCompareViewBinder — litter follows the fan-out live', () => {
+  it('adds a child spawned after open, loads it and refits the camada', () => {
+    const heights = createFakeHeights()
+    const { store, binder } = setup(heights)
+    store.dispatchFanOut({ type: 'open-for-node', nodeId: 'root' })
+    store.dispatchFanOut({ type: 'set-repo-selector', repoSelector: 'id:repo-a' })
+    store.dispatchFanOut({ type: 'submit', mutationIds: ['m0', 'm1', 'm2'] })
+    store.dispatchFanOut({ type: 'child-created', mutationId: 'm0', worktreeId: 'w1' })
+    store.dispatchFanOut({ type: 'child-created', mutationId: 'm1', worktreeId: 'w2' })
+    store.dispatchCompareView({ type: 'open', members: ['w1', 'w2'] })
+    binder.sync()
+
+    store.dispatchFanOut({ type: 'child-created', mutationId: 'm2', worktreeId: 'w3' })
+    binder.sync()
+
+    const slice = store.get().compareView
+    expect(slice.view === 'open' && slice.members).toEqual(['w1', 'w2', 'w3'])
+    expect(slice.view === 'open' && slice.focusedChildId).toBe('w1')
+    expect(heights.refitCamadaCalls.at(-1)).toEqual(['root', 'w1', 'w2', 'w3'])
+  })
+})
+
 describe('createCompareViewBinder — onViewportResize (design D8/risk 6)', () => {
   it('refits while open after a push', () => {
     const heights = createFakeHeights()

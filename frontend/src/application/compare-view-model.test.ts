@@ -110,6 +110,29 @@ describe('sceneSelectedId', () => {
   })
 })
 
+describe('reduceCompareView — members-added', () => {
+  it('appends new members with an empty load and keeps focus, winner and existing loads', () => {
+    const loaded = reduceCompareView(
+      reduceCompareView(openSlice(), { type: 'focus-child', childId: 'w-child-2' }),
+      { type: 'set-winner', winnerId: 'w-child-2' }
+    )
+    const slice = reduceCompareView(loaded, { type: 'members-added', members: ['w-child-3'] })
+    expect(slice).toMatchObject({
+      members: ['w-child-1', 'w-child-2', 'w-child-3'],
+      focusedChildId: 'w-child-2',
+      winnerId: 'w-child-2'
+    })
+    expect(slice.view === 'open' && slice.childLoads['w-child-3']).toEqual(emptyCompareChildLoad())
+  })
+
+  it('ignores members already present and is a no-op when closed', () => {
+    const open = openSlice()
+    expect(reduceCompareView(open, { type: 'members-added', members: ['w-child-1'] })).toBe(open)
+    const closed = emptyCompareViewSlice()
+    expect(reduceCompareView(closed, { type: 'members-added', members: ['x'] })).toBe(closed)
+  })
+})
+
 describe('reduceCompareView — focus-child', () => {
   it('sets focusedChildId when open', () => {
     const slice = reduceCompareView(openSlice(), { type: 'focus-child', childId: 'w-child-1' })

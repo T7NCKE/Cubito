@@ -17,7 +17,7 @@ import {
   GIT_MERGE_WINNER_CAPABILITY,
   GIT_MERGE_WINNER_SYNC_CAPABILITY
 } from './application/runtime-capability-keys'
-import { fanOutParentId } from './application/fan-out-model'
+import { fanOutMemberIds, fanOutParentId } from './application/fan-out-model'
 import type { SceneState, SceneStore } from './application/scene-store'
 import type { CameraHeightController } from './presentation/input/camera-height-controller'
 import type { WorktreeId } from './domain/worktree-graph/types'
@@ -105,8 +105,22 @@ export function createCompareViewBinder(deps: BindCompareViewDeps): CompareViewB
   const branchLabelFor = (childId: WorktreeId): string =>
     deps.store.get().graph.nodes.get(childId)?.branch ?? childId
 
+  // Why: compare snapshots the litter on open; children created afterwards must join live.
+  function adoptLateChildren(): void {
+    const { compareView, fanOut } = deps.store.get()
+    if (compareView.view !== 'open' || fanOut.view !== 'running') return
+    const late = fanOutMemberIds(fanOut)
+      .slice(1)
+      .filter((id) => !(id in compareView.childLoads))
+    if (late.length === 0) return
+    deps.store.dispatchCompareView({ type: 'members-added', members: late })
+    loader.add(late)
+    if (pushedHeight) deps.heights.refitCamada(camadaIds(deps.store.get()))
+  }
+
   return {
     sync(): void {
+      adoptLateChildren()
       const state = deps.store.get()
       const { compareView } = state
       const isOpen = compareView.view === 'open'

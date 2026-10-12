@@ -43,6 +43,7 @@ export const emptyCompareViewSlice = (): CompareViewSlice => ({ view: 'closed' }
 
 export type CompareViewAction =
   | { type: 'open'; members: readonly WorktreeId[] }
+  | { type: 'members-added'; members: readonly WorktreeId[] }
   | { type: 'focus-child'; childId: WorktreeId }
   | { type: 'select-file'; childId: WorktreeId; path: string }
   | {
@@ -92,6 +93,20 @@ export function reduceCompareView(
       }
     case 'close':
       return { view: 'closed' }
+    case 'members-added': {
+      if (slice.view !== 'open') return slice
+      const fresh = action.members.filter((id) => !(id in slice.childLoads))
+      if (fresh.length === 0) return slice
+      return {
+        ...slice,
+        members: [...slice.members, ...fresh],
+        focusedChildId: slice.focusedChildId ?? fresh[0] ?? null,
+        childLoads: {
+          ...slice.childLoads,
+          ...Object.fromEntries(fresh.map((childId) => [childId, emptyCompareChildLoad()]))
+        }
+      }
+    }
     case 'focus-child':
       return slice.view === 'open' ? { ...slice, focusedChildId: action.childId } : slice
     case 'set-winner':

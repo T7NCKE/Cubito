@@ -22,6 +22,8 @@ export type CompareLiveLoader = {
   /** Kicks off one gitBranchCompare per litter member, concurrently — one child's failure
    *  never blocks the others (continue-on-error). */
   start(members: readonly WorktreeId[]): void
+  /** Loads the rail of children that joined the litter after `start`. */
+  add(members: readonly WorktreeId[]): void
   select(childId: WorktreeId, path: string): void
   stop(): void
   rebindGateway(gateway: CompareLiveLoaderGatewayPort): void
@@ -158,6 +160,9 @@ export function createCompareLiveLoader(deps: CompareLiveLoaderDeps): CompareLiv
       for (const childId of members) {
         void loadChildRail(childId)
       }
+    },
+    add(members) {
+      for (const childId of members) void loadChildRail(childId)
     },
     select(childId, path) {
       const slice = deps.store.get().compareView
