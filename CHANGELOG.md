@@ -4,6 +4,14 @@ All notable changes to Cubito are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-12
+
+### Fixed
+
+- Comparing a litter right after a fan-out no longer shows a "no base ref" error for children the graph hasn't caught up with yet: they fall back to the parent's branch or stay pending until they appear. That message no longer exposes internal ids or paths.
+- Long changed lines in the diff and compare panels stay aligned with their line numbers and scroll horizontally instead of wrapping under the gutter.
+- A node label that would land on another node's cube is hidden instead of covering it.
+
 ## [0.1.3] - 2026-10-09
 
 ### Fixed
@@ -69,7 +77,8 @@ First public release: a spatial frontend over ORCA's headless engine, published 
 - The published port binds `127.0.0.1` only.
 - Egress audited: no contact with Orca cloud services, no analytics, no updater; `glab` answers offline when unconfigured, the push gateway is not started, and Claude Code's auto-updater is disabled in the image.
 
-[Unreleased]: https://github.com/tincke10/Cubito/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/tincke10/Cubito/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/tincke10/Cubito/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/tincke10/Cubito/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/tincke10/Cubito/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/tincke10/Cubito/compare/v0.1.0...v0.1.1
