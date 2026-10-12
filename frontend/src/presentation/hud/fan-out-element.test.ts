@@ -290,3 +290,55 @@ describe('createFanOutForm — dispose', () => {
     expect(removed).toBe(true)
   })
 })
+
+describe('createFanOutForm — keyboard', () => {
+  const press = (
+    form: ReturnType<typeof createFanOutForm>,
+    key: string,
+    tagName: string
+  ): { stopPropagation: ReturnType<typeof vi.fn> } => {
+    const stopPropagation = vi.fn()
+    ;(form.element as unknown as FakeElement).fire('keydown', {
+      key,
+      target: { tagName },
+      stopPropagation
+    })
+    return { stopPropagation }
+  }
+
+  it('Escape in the form cancels and does not reach the global shortcuts', () => {
+    const form = createFanOutForm(createFakeDocument())
+    form.apply(formModel())
+    const onCancel = vi.fn()
+    form.onCancel(onCancel)
+    const { stopPropagation } = press(form, 'Escape', 'INPUT')
+    expect(onCancel).toHaveBeenCalledOnce()
+    expect(stopPropagation).toHaveBeenCalledOnce()
+  })
+
+  it('Enter submits from the count and agent fields but never from PROMPT or a button', () => {
+    const form = createFanOutForm(createFakeDocument())
+    form.apply(formModel())
+    const onSubmit = vi.fn()
+    form.onSubmit(onSubmit)
+    press(form, 'Enter', 'TEXTAREA')
+    press(form, 'Enter', 'BUTTON')
+    expect(onSubmit).not.toHaveBeenCalled()
+    press(form, 'Enter', 'INPUT')
+    press(form, 'Enter', 'SELECT')
+    expect(onSubmit).toHaveBeenCalledTimes(2)
+  })
+
+  it('Escape dismisses the running panel too, but Enter never submits there', () => {
+    const form = createFanOutForm(createFakeDocument())
+    form.apply(runningModel())
+    const onCancel = vi.fn()
+    const onSubmit = vi.fn()
+    form.onCancel(onCancel)
+    form.onSubmit(onSubmit)
+    press(form, 'Enter', 'INPUT')
+    expect(onSubmit).not.toHaveBeenCalled()
+    press(form, 'Escape', 'INPUT')
+    expect(onCancel).toHaveBeenCalledOnce()
+  })
+})

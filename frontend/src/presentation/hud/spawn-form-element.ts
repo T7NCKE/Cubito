@@ -7,13 +7,14 @@ import type { SpawnFormViewModel } from './spawn-view-model'
 export type SpawnFormField = keyof SpawnFormFields
 
 /** Design's `[⏎] crear · [esc] cancelar` footer (SPAWN-005): Escape always cancels; Enter
- *  submits from a single-line field but not from PROMPT, where it must insert a newline. */
+ *  submits from a single-line field but not from PROMPT (newline) or a button (its own click). */
 export function resolveSpawnFormKey(event: {
   key: string
   tagName: string
 }): 'submit' | 'cancel' | null {
   if (event.key === 'Escape') return 'cancel'
-  if (event.key === 'Enter' && event.tagName !== 'TEXTAREA') return 'submit'
+  if (event.key === 'Enter' && event.tagName !== 'TEXTAREA' && event.tagName !== 'BUTTON')
+    return 'submit'
   return null
 }
 

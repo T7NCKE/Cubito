@@ -4,6 +4,7 @@ import { createFanOutGateList } from './fan-out-gate-list-element'
 import { t } from '../../application/i18n/translate'
 import { renderFailureText } from '../failure-text-element'
 import { AGENT_OPTIONS, agentOptionLabel } from './spawn-agent-options'
+import { resolveSpawnFormKey } from './spawn-form-element'
 
 export type FanOutFormHandle = {
   readonly element: HTMLElement
@@ -110,6 +111,20 @@ export function createFanOutForm(doc: Document = document): FanOutFormHandle {
   submitButton.addEventListener('click', () => submitCallback?.())
   cancelButton.addEventListener('click', () => cancelCallback?.())
 
+  // Same keys as the spawn form; the running panel only honours Escape (it has no submit).
+  let formVisible = true
+  root.addEventListener('keydown', (event) => {
+    const keyEvent = event as KeyboardEvent
+    const action = resolveSpawnFormKey({
+      key: keyEvent.key,
+      tagName: (event.target as unknown as { tagName: string }).tagName
+    })
+    if (action === null || (action === 'submit' && !formVisible)) return
+    keyEvent.stopPropagation()
+    if (action === 'cancel') cancelCallback?.()
+    else submitCallback?.()
+  })
+
   const showFields = (visible: boolean): void => {
     const display = visible ? '' : 'none'
     title.style.display = display
@@ -145,6 +160,7 @@ export function createFanOutForm(doc: Document = document): FanOutFormHandle {
   return {
     element: root,
     apply(model: FanOutFormViewModel | FanOutRunningViewModel) {
+      formVisible = model.view === 'form'
       if (model.view === 'form') {
         showFields(true)
         showRunning(false)
