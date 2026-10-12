@@ -92,7 +92,8 @@ export function createCompareViewBinder(deps: BindCompareViewDeps): CompareViewB
         state.fanOut,
         {
           gateway: mergeGateway,
-          dispatch: (action) => deps.store.dispatchCompareView(action)
+          dispatch: (action) => deps.store.dispatchCompareView(action),
+          graph: state.graph
         },
         syncWorkingTree
       )

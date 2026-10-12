@@ -2,6 +2,7 @@ import { fanOutMemberIds } from './fan-out-model'
 import type { FanOutSlice } from './fan-out-model'
 import type { CompareViewAction, CompareViewSlice } from './compare-view-model'
 import type { MergeWinnerResult, RuntimeGateway } from './ports/runtime-gateway'
+import type { WorktreeGraph } from '../domain/worktree-graph/types'
 import { describeFailure } from './i18n/user-facing-error'
 
 export type CompareMergeGatewayPort = Pick<RuntimeGateway, 'gitMergeWinnerIntoParent'>
@@ -9,11 +10,13 @@ export type CompareMergeGatewayPort = Pick<RuntimeGateway, 'gitMergeWinnerIntoPa
 export type CompareMergeRunDeps = {
   gateway: CompareMergeGatewayPort
   dispatch: (action: CompareViewAction) => void
+  /** Resolves the parent when no fan-out is running here (reload, new tab, other device). */
+  graph?: WorktreeGraph
 }
 
 /**
  * Winner-merge runner (Change E) — fires `git.mergeWinnerIntoParent(parent, winner)`, parent
- * being the litter's own parent (`fanOutMemberIds[0]`) and winner the compare slice's chosen
+ * being the litter's own parent (`fanOutMemberIds[0]`, else the winner's parent in the graph) and winner the compare slice's chosen
  * winnerId. No-op (zero gateway calls) when compare is closed, no winner is picked, a merge is
  * already running, or the litter has no parent — mirrors set-winner's no-implicit-pick rule.
  * Headless: never touches the parent worktree's working tree (R1 — the success copy warns).
@@ -27,9 +30,9 @@ export async function runCompareMerge(
   if (compareView.view !== 'open') return
   if (compareView.winnerId === null) return
   if (compareView.merge.phase === 'running') return
-  const parent = fanOutMemberIds(fanOut)[0]
-  if (parent === undefined) return
   const winner = compareView.winnerId
+  const parent = fanOutMemberIds(fanOut)[0] ?? deps.graph?.nodes.get(winner)?.parentId ?? undefined
+  if (parent === undefined) return
 
   deps.dispatch({ type: 'merge-start' })
   try {

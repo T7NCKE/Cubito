@@ -3,6 +3,8 @@ import { runCompareMerge } from './compare-merge-run'
 import type { CompareViewAction, CompareViewSlice } from './compare-view-model'
 import { emptyCompareViewSlice, reduceCompareView } from './compare-view-model'
 import type { FanOutSlice } from './fan-out-model'
+import { emptyFanOutSlice } from './fan-out-model'
+import type { WorktreeGraph } from '../domain/worktree-graph/types'
 import type { MergeWinnerResult } from './ports/runtime-gateway'
 
 const openWithWinner = (winnerId: string | null = 'w-child-2'): CompareViewSlice => {
@@ -34,6 +36,39 @@ const setup = (gateway = createFakeGateway()) => {
   const dispatch = vi.fn<(action: CompareViewAction) => void>()
   return { gateway, dispatch }
 }
+
+describe('runCompareMerge — no fan-out in this tab (reload / new tab)', () => {
+  const graphWithParent = (parentId: string | null): WorktreeGraph =>
+    ({
+      nodes: new Map([['w-child-2', { id: 'w-child-2', parentId }]])
+    }) as unknown as WorktreeGraph
+
+  it("falls back to the winner's parent in the graph", async () => {
+    const { gateway, dispatch } = setup()
+    await runCompareMerge(openWithWinner('w-child-2'), emptyFanOutSlice(), {
+      gateway,
+      dispatch,
+      graph: graphWithParent('w-graph-parent')
+    })
+    expect(gateway.gitMergeWinnerIntoParent).toHaveBeenCalledWith(
+      'w-graph-parent',
+      'w-child-2',
+      undefined,
+      false
+    )
+  })
+
+  it('stays a no-op when the graph knows no parent either', async () => {
+    const { gateway, dispatch } = setup()
+    await runCompareMerge(openWithWinner('w-child-2'), emptyFanOutSlice(), {
+      gateway,
+      dispatch,
+      graph: graphWithParent(null)
+    })
+    expect(gateway.gitMergeWinnerIntoParent).not.toHaveBeenCalled()
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+})
 
 describe('runCompareMerge — happy path', () => {
   it('calls gitMergeWinnerIntoParent with (parent, winner) — parent is fanOutMemberIds[0]', async () => {
