@@ -968,28 +968,28 @@ describe('composeFanOutGraph', () => {
   })
 })
 
-describe('fanOutSettled', () => {
-  const running = (
-    agent: 'none' | 'claude',
-    batch: FanOutBatchEntry[],
-    memberStatus: Record<string, 'idle' | 'working' | 'waiting-input'> = {}
-  ): FanOutSlice => ({
-    view: 'running',
-    parentId: 'w1',
-    fields: { count: batch.length, agent, prompt: '' },
-    repoSelector: 'id:r',
-    batch,
-    memberStatus,
-    runId: null
-  })
-  const entry = (id: string, worktreeId: string | null, failed = false): FanOutBatchEntry => ({
-    mutationId: id,
-    worktreeId,
-    failed,
-    dispatchId: null,
-    taskId: null
-  })
+const running = (
+  agent: 'none' | 'claude',
+  batch: FanOutBatchEntry[],
+  memberStatus: Record<string, 'idle' | 'working' | 'waiting-input'> = {}
+): FanOutSlice => ({
+  view: 'running',
+  parentId: 'w1',
+  fields: { count: batch.length, agent, prompt: '' },
+  repoSelector: 'id:r',
+  batch,
+  memberStatus,
+  runId: null
+})
+const entry = (id: string, worktreeId: string | null, failed = false): FanOutBatchEntry => ({
+  mutationId: id,
+  worktreeId,
+  failed,
+  dispatchId: null,
+  taskId: null
+})
 
+describe('fanOutSettled', () => {
   it('is false for anything that is not running', () => {
     expect(fanOutSettled(emptyFanOutSlice())).toBe(false)
   })

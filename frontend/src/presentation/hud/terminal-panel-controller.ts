@@ -81,6 +81,19 @@ type Mounted = {
   attachedTitle?: string
 }
 
+/** Shows/hides the panel; the first reveal fits the shell to its real size and serves a deferred focus. */
+function setPlaced(entry: Mounted, placed: boolean): void {
+  entry.panel.setPlaced(placed)
+  if (placed === entry.placed) return
+  entry.placed = placed
+  if (!placed) return
+  entry.panel.fit()
+  if (entry.focusPending) {
+    entry.focusPending = false
+    entry.panel.focus()
+  }
+}
+
 /** design v3-3: prefer the entry a tracked TUI agent is running in, else the first one listed. */
 function pickHostTerminal(
   terminals: readonly HostTerminalSummary[]
@@ -148,19 +161,6 @@ export function createTerminalPanelController(
     onError: () => {},
     onEnd: () => {}
   })
-
-  /** Shows/hides the panel; the first reveal fits the shell to its real size and serves a deferred focus. */
-  const setPlaced = (entry: Mounted, placed: boolean): void => {
-    entry.panel.setPlaced(placed)
-    if (placed === entry.placed) return
-    entry.placed = placed
-    if (!placed) return
-    entry.panel.fit()
-    if (entry.focusPending) {
-      entry.focusPending = false
-      entry.panel.focus()
-    }
-  }
 
   const exitFocus = (): void => {
     if (mounted) mounted.focusPending = false
