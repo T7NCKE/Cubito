@@ -227,7 +227,15 @@ export type AgentActivityInput = { worktree: string; sinceSeq?: number; limit?: 
 export type ParentWorkingTreeSyncResult =
   | { status: 'synced' }
   | { status: 'skipped'; reason: 'dirty' }
-  | { status: 'failed'; message: string }
+  /** Merged but unsynced; previousOid (newer hosts) is the parent tip before the merge. */
+  | { status: 'failed'; message: string; previousOid?: string }
+
+/** Why a synced merge refused to start (nothing changed); unknown values arrive as sync-refused. */
+export type MergeBlockReason =
+  | 'untracked-overwrite'
+  | 'dirty-parent'
+  | 'sync-refused'
+  | 'sync-failed'
 
 /** `known: false` = the host could not read orca.yaml (e.g. SSH filesystem down): absence proves nothing. */
 export type RepoSetupInfo = {
@@ -250,6 +258,9 @@ export type MergeWinnerResult =
       dependencySetup?: ParentDependencySetupResult
     }
   | { outcome: 'conflict'; files: readonly string[] }
+  | { outcome: 'blocked'; reason: MergeBlockReason; paths: readonly string[]; message?: string }
+  /** The parent already contains the winner; commitOid is the untouched parent tip. */
+  | { outcome: 'already-merged'; commitOid: string }
 
 /** Staging area of one `git.status` entry; a path edited after staging appears in two areas. */
 export type GitStagingArea = 'staged' | 'unstaged' | 'untracked'

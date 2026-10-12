@@ -174,3 +174,29 @@ describe('runCompareMerge — guards (no-op, zero gateway calls)', () => {
     expect(dispatch).not.toHaveBeenCalled()
   })
 })
+
+describe('runCompareMerge — atomic sync outcomes', () => {
+  it('dispatches merge-blocked with reason, paths and detail', async () => {
+    const gateway = createFakeGateway(async () => ({
+      outcome: 'blocked',
+      reason: 'untracked-overwrite',
+      paths: ['new.txt'],
+      message: 'error: x'
+    }))
+    const { dispatch } = setup(gateway)
+    await runCompareMerge(openWithWinner(), runningFanOut(), { gateway, dispatch }, true)
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: 'merge-blocked',
+      reason: 'untracked-overwrite',
+      paths: ['new.txt'],
+      message: 'error: x'
+    })
+  })
+
+  it('dispatches merge-already-merged with the parent tip', async () => {
+    const gateway = createFakeGateway(async () => ({ outcome: 'already-merged', commitOid: 'abc' }))
+    const { dispatch } = setup(gateway)
+    await runCompareMerge(openWithWinner(), runningFanOut(), { gateway, dispatch })
+    expect(dispatch).toHaveBeenLastCalledWith({ type: 'merge-already-merged', commitOid: 'abc' })
+  })
+})

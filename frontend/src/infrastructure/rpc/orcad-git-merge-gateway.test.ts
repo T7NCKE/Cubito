@@ -183,3 +183,54 @@ describe('createGitMergeMethods — gitMergeWinnerIntoParent', () => {
     })
   })
 })
+
+describe('createGitMergeMethods — atomic sync outcomes', () => {
+  const resolveWith = async (result: unknown) =>
+    createGitMergeMethods({ call: vi.fn(async () => frame(result)) }).gitMergeWinnerIntoParent(
+      'p',
+      'w'
+    )
+
+  it('projects a blocked result with its reason, paths and detail', async () => {
+    await expect(
+      resolveWith({
+        outcome: 'blocked',
+        reason: 'untracked-overwrite',
+        paths: ['new.txt'],
+        message: 'error: x'
+      })
+    ).resolves.toEqual({
+      outcome: 'blocked',
+      reason: 'untracked-overwrite',
+      paths: ['new.txt'],
+      message: 'error: x'
+    })
+  })
+
+  it('maps an unknown blocked reason from a newer host to sync-refused', async () => {
+    await expect(
+      resolveWith({ outcome: 'blocked', reason: 'future-reason', paths: [] })
+    ).resolves.toEqual({ outcome: 'blocked', reason: 'sync-refused', paths: [] })
+  })
+
+  it('projects already-merged with the parent tip', async () => {
+    await expect(resolveWith({ outcome: 'already-merged', commitOid: 'abc' })).resolves.toEqual({
+      outcome: 'already-merged',
+      commitOid: 'abc'
+    })
+  })
+
+  it('keeps previousOid on a failed (merged-unsynced) workingTree', async () => {
+    await expect(
+      resolveWith({
+        outcome: 'clean',
+        commitOid: 'abc',
+        workingTree: { status: 'failed', message: 'm', previousOid: 'prev' }
+      })
+    ).resolves.toEqual({
+      outcome: 'clean',
+      commitOid: 'abc',
+      workingTree: { status: 'failed', message: 'm', previousOid: 'prev' }
+    })
+  })
+})

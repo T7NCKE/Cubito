@@ -1,4 +1,5 @@
 import type {
+  MergeBlockReason,
   MergeWinnerResult,
   ParentDependencySetupResult,
   ParentWorkingTreeSyncResult,
@@ -22,7 +23,12 @@ function toWorkingTreeResult(workingTree: unknown): ParentWorkingTreeSyncResult 
     return { status: 'skipped', reason: 'dirty' }
   }
   if (w.status === 'failed' && typeof w.message === 'string') {
-    return { status: 'failed', message: w.message }
+    const previousOid = (workingTree as { previousOid?: unknown }).previousOid
+    return {
+      status: 'failed',
+      message: w.message,
+      ...(typeof previousOid === 'string' ? { previousOid } : {})
+    }
   }
   return undefined
 }
@@ -35,11 +41,24 @@ function toDependencySetupResult(value: unknown): ParentDependencySetupResult | 
   return (value as { status?: unknown }).status === 'started' ? { status: 'started' } : undefined
 }
 
+const BLOCK_REASONS: readonly MergeBlockReason[] = [
+  'untracked-overwrite',
+  'dirty-parent',
+  'sync-refused',
+  'sync-failed'
+]
+
+const isStringList = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === 'string')
+
 /** Projects a raw `git.mergeWinnerIntoParent` result onto the local `MergeWinnerResult` shape. */
 function toMergeWinnerResult(result: {
   outcome?: unknown
   commitOid?: unknown
   files?: unknown
+  reason?: unknown
+  paths?: unknown
+  message?: unknown
   workingTree?: unknown
   dependencySetup?: unknown
 }): MergeWinnerResult {
@@ -53,11 +72,20 @@ function toMergeWinnerResult(result: {
       ...(dependencySetup ? { dependencySetup } : {})
     }
   }
-  if (result.outcome === 'conflict' && Array.isArray(result.files)) {
-    const files = result.files as unknown[]
-    if (files.every((file): file is string => typeof file === 'string')) {
-      return { outcome: 'conflict', files }
+  if (result.outcome === 'conflict' && isStringList(result.files)) {
+    return { outcome: 'conflict', files: result.files }
+  }
+  if (result.outcome === 'blocked' && isStringList(result.paths)) {
+    const reason = BLOCK_REASONS.find((known) => known === result.reason) ?? 'sync-refused'
+    return {
+      outcome: 'blocked',
+      reason,
+      paths: result.paths,
+      ...(typeof result.message === 'string' ? { message: result.message } : {})
     }
+  }
+  if (result.outcome === 'already-merged' && typeof result.commitOid === 'string') {
+    return { outcome: 'already-merged', commitOid: result.commitOid }
   }
   throw new Error('git.mergeWinnerIntoParent returned a malformed result')
 }

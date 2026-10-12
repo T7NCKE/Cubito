@@ -12,8 +12,20 @@ export const enCompare = {
   'compare.syncParent': 'sync the parent',
   'compare.mergedClean':
     'Merged into the parent ({oid}). Sync the parent worktree (reset/checkout) to see the changes.',
-  'compare.parentSynced': 'parent synced.',
+  'compare.mergedSynced': 'Merged into the parent ({oid}) — parent synced.',
+  'compare.mergedUnsynced':
+    'Merged into the parent ({oid}), but its files were not updated: the parent shows the merge reversed until you finish or undo it.',
+  'compare.unsyncedRecovery':
+    'In the parent worktree: undo with `git reset --soft {previous}`, or move the blocking files away and finish with `git read-tree -u -m {previous} HEAD`.',
   'compare.parentSkipped': 'parent not synced: it has uncommitted changes.',
+  'compare.blocked.untracked-overwrite':
+    'The parent has files the winner would overwrite — nothing was merged. Move or delete them, then merge again:',
+  'compare.blocked.dirty-parent':
+    'The parent has uncommitted changes in files the winner changes — nothing was merged. Commit or stash them, then merge again:',
+  'compare.blocked.sync-refused': 'The parent worktree cannot be updated — nothing was merged.',
+  'compare.blocked.sync-failed':
+    'Updating the parent worktree failed, so the merge was undone — nothing was merged.',
+  'compare.alreadyMerged': 'The parent already contains this winner ({oid}) — nothing to merge.',
   'compare.reinstalling': 'reinstalling the parent dependencies in the background (setup).',
   'compare.winner': 'winner',
   'compare.pickWinner': 'pick winner',

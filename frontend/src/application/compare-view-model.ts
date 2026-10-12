@@ -1,6 +1,7 @@
 import type { WorktreeId } from '../domain/worktree-graph/types'
 import type {
   DiffFileContent,
+  MergeBlockReason,
   ParentDependencySetupResult,
   ParentWorkingTreeSyncResult
 } from './ports/runtime-gateway'
@@ -23,6 +24,9 @@ export type CompareMergeState =
       dependencySetup?: ParentDependencySetupResult
     }
   | { phase: 'conflict'; files: readonly string[] }
+  /** Synced merge refused up front: the parent ref did not move. */
+  | { phase: 'blocked'; reason: MergeBlockReason; paths: readonly string[]; message?: string }
+  | { phase: 'already-merged'; commitOid: string }
   | { phase: 'error'; message: FailureMessage }
 
 const idleMerge = (): CompareMergeState => ({ phase: 'idle' })
@@ -64,6 +68,13 @@ export type CompareViewAction =
       dependencySetup?: ParentDependencySetupResult
     }
   | { type: 'merge-conflict'; files: readonly string[] }
+  | {
+      type: 'merge-blocked'
+      reason: MergeBlockReason
+      paths: readonly string[]
+      message?: string
+    }
+  | { type: 'merge-already-merged'; commitOid: string }
   | { type: 'merge-error'; message: FailureMessage }
   | { type: 'merge-reset' }
   | { type: 'close' }
@@ -110,7 +121,13 @@ export function reduceCompareView(
     case 'focus-child':
       return slice.view === 'open' ? { ...slice, focusedChildId: action.childId } : slice
     case 'set-winner':
-      return slice.view === 'open' ? { ...slice, winnerId: action.winnerId } : slice
+      if (slice.view !== 'open' || slice.winnerId === action.winnerId) return slice
+      // Why: a merge outcome describes the previous winner; keeping it would block a new merge.
+      return {
+        ...slice,
+        winnerId: action.winnerId,
+        merge: slice.merge.phase === 'running' ? slice.merge : idleMerge()
+      }
     case 'merge-start':
       return slice.view === 'open' ? { ...slice, merge: { phase: 'running' } } : slice
     case 'merge-clean':
@@ -128,6 +145,15 @@ export function reduceCompareView(
     case 'merge-conflict':
       return slice.view === 'open'
         ? { ...slice, merge: { phase: 'conflict', files: action.files } }
+        : slice
+    case 'merge-blocked': {
+      if (slice.view !== 'open') return slice
+      const { type: _type, ...blocked } = action
+      return { ...slice, merge: { phase: 'blocked', ...blocked } }
+    }
+    case 'merge-already-merged':
+      return slice.view === 'open'
+        ? { ...slice, merge: { phase: 'already-merged', commitOid: action.commitOid } }
         : slice
     case 'merge-error':
       return slice.view === 'open'

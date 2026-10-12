@@ -369,3 +369,33 @@ describe('reduceCompareView — per-child load actions route by childId', () => 
     ).toBe(closed)
   })
 })
+
+describe('reduceCompareView — atomic sync outcomes', () => {
+  it('merge-blocked records the reason and paths', () => {
+    const running = reduceCompareView(openSlice(), { type: 'merge-start' })
+    const slice = reduceCompareView(running, {
+      type: 'merge-blocked',
+      reason: 'dirty-parent',
+      paths: ['base.txt']
+    })
+    expect(slice).toMatchObject({
+      merge: { phase: 'blocked', reason: 'dirty-parent', paths: ['base.txt'] }
+    })
+  })
+
+  it('merge-already-merged records the parent tip', () => {
+    const slice = reduceCompareView(openSlice(), { type: 'merge-already-merged', commitOid: 'abc' })
+    expect(slice).toMatchObject({ merge: { phase: 'already-merged', commitOid: 'abc' } })
+  })
+
+  it('picking a different winner resets the merge state', () => {
+    let slice = reduceCompareView(openSlice(), { type: 'set-winner', winnerId: 'w-child-1' })
+    slice = reduceCompareView(slice, { type: 'merge-already-merged', commitOid: 'abc' })
+    expect(reduceCompareView(slice, { type: 'set-winner', winnerId: 'w-child-1' })).toMatchObject({
+      merge: { phase: 'already-merged' }
+    })
+    expect(reduceCompareView(slice, { type: 'set-winner', winnerId: 'w-child-2' })).toMatchObject({
+      merge: { phase: 'idle' }
+    })
+  })
+})

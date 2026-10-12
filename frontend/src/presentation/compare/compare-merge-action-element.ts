@@ -24,19 +24,33 @@ export type CompareMergeActionHandle = {
   dispose(): void
 }
 
+const shortOid = (oid: string): string => oid.slice(0, 7)
+
 /** R1: the merge is headless — it moves the parent branch ref but never touches the parent
  *  worktree's working tree, so the merged changes look uncommitted there until synced. */
 const cleanText = (commitOid: string): string =>
-  t('compare.mergedClean', { oid: commitOid.slice(0, 7) })
+  t('compare.mergedClean', { oid: shortOid(commitOid) })
 
-/** v3-2: per-status copy for the opt-in parent working-tree sync outcome. */
-const workingTreeText = (
-  workingTree: NonNullable<Extract<CompareMergeState, { phase: 'clean' }>['workingTree']>
-): FailureMessage => {
-  if (workingTree.status === 'synced') return plainFailure(t('compare.parentSynced'))
-  if (workingTree.status === 'skipped') return plainFailure(t('compare.parentSkipped'))
-  return describeFailure('parentSync', workingTree.message)
-}
+type CleanMerge = Extract<CompareMergeState, { phase: 'clean' }>
+type WorkingTreeSync = NonNullable<CleanMerge['workingTree']>
+
+/** Merged-unsynced (ref moved, files stale): always keeps the merged oid in the lead. */
+const unsyncedText = (commitOid: string, workingTree: WorkingTreeSync): FailureMessage => ({
+  lead: t('compare.mergedUnsynced', { oid: shortOid(commitOid) }),
+  detail:
+    workingTree.status === 'failed'
+      ? describeFailure('parentSync', workingTree.message).detail
+      : t('compare.parentSkipped')
+})
+
+/** The merge commit's first parent is the pre-merge tip, so older hosts still get a command. */
+const recoveryText = (commitOid: string, workingTree: WorkingTreeSync): string =>
+  t('compare.unsyncedRecovery', {
+    previous:
+      workingTree.status === 'failed' && workingTree.previousOid
+        ? shortOid(workingTree.previousOid)
+        : `${shortOid(commitOid)}^1`
+  })
 
 /** Copy for the background parent setup-hook re-run triggered by changed package manifests. */
 const dependencySetupText = (
@@ -82,45 +96,65 @@ export function createCompareMergeAction(doc: Document = document): CompareMerge
 
   twoStep.onConfirm(() => mergeCallback?.(syncCheckbox.checked))
 
+  const appendLine = (modifier: string, failure: FailureMessage): void => {
+    const line = doc.createElement('div')
+    line.className = `compare-merge-action__result-line compare-merge-action__result-line--${modifier}`
+    renderFailureText(doc, line, failure)
+    result.appendChild(line)
+  }
+
+  const appendPathList = (paths: readonly string[]): void => {
+    if (paths.length === 0) return
+    const list = doc.createElement('ul')
+    list.className = 'compare-merge-action__conflict-list'
+    for (const file of paths) {
+      const item = doc.createElement('li')
+      item.textContent = file
+      list.appendChild(item)
+    }
+    result.appendChild(list)
+  }
+
+  const renderClean = (merge: CleanMerge): void => {
+    const { commitOid, workingTree } = merge
+    if (workingTree?.status === 'failed' || workingTree?.status === 'skipped') {
+      appendLine('warning', unsyncedText(commitOid, workingTree))
+      appendLine('warning', plainFailure(recoveryText(commitOid, workingTree)))
+      return
+    }
+    appendLine(
+      'clean',
+      plainFailure(
+        workingTree?.status === 'synced'
+          ? t('compare.mergedSynced', { oid: shortOid(commitOid) })
+          : cleanText(commitOid)
+      )
+    )
+    if (merge.dependencySetup) {
+      appendLine('clean', plainFailure(dependencySetupText(merge.dependencySetup)))
+    }
+  }
+
   const renderResult = (merge: CompareMergeState): void => {
     result.replaceChildren()
     if (merge.phase === 'clean') {
-      const line = doc.createElement('div')
-      line.className = 'compare-merge-action__result-line compare-merge-action__result-line--clean'
-      renderFailureText(
-        doc,
-        line,
-        merge.workingTree
-          ? workingTreeText(merge.workingTree)
-          : plainFailure(cleanText(merge.commitOid))
+      renderClean(merge)
+    } else if (merge.phase === 'already-merged') {
+      appendLine(
+        'clean',
+        plainFailure(t('compare.alreadyMerged', { oid: shortOid(merge.commitOid) }))
       )
-      result.appendChild(line)
-      if (merge.dependencySetup) {
-        const setupLine = doc.createElement('div')
-        setupLine.className =
-          'compare-merge-action__result-line compare-merge-action__result-line--clean'
-        setupLine.textContent = dependencySetupText(merge.dependencySetup)
-        result.appendChild(setupLine)
-      }
+    } else if (merge.phase === 'blocked') {
+      appendLine('conflict', {
+        lead: t(`compare.blocked.${merge.reason}`),
+        detail: merge.message ? describeFailure('parentSync', merge.message).detail : null
+      })
+      appendPathList(merge.paths)
     } else if (merge.phase === 'conflict') {
-      const heading = doc.createElement('div')
-      heading.className =
-        'compare-merge-action__result-line compare-merge-action__result-line--conflict'
-      heading.textContent = t('compare.conflict')
-      result.appendChild(heading)
-      const list = doc.createElement('ul')
-      list.className = 'compare-merge-action__conflict-list'
-      for (const file of merge.files) {
-        const item = doc.createElement('li')
-        item.textContent = file
-        list.appendChild(item)
-      }
-      result.appendChild(list)
+      appendLine('conflict', plainFailure(t('compare.conflict')))
+      appendPathList(merge.files)
     } else if (merge.phase === 'error') {
-      const line = doc.createElement('div')
-      line.className = 'compare-merge-action__result-line compare-merge-action__result-line--error'
-      renderFailureText(doc, line, merge.message)
-      result.appendChild(line)
+      appendLine('error', merge.message)
     }
   }
 
@@ -140,7 +174,8 @@ export function createCompareMergeAction(doc: Document = document): CompareMerge
           busy: t('compare.merging')
         },
         busy: model.merge.phase === 'running',
-        disabled: !capable
+        // Why: re-merging an already-contained winner is a no-op; a new winner resets the phase.
+        disabled: !capable || model.merge.phase === 'already-merged'
       })
       syncRow.hidden = !model.syncCapable
       renderResult(model.merge)

@@ -1,7 +1,7 @@
 import { fanOutMemberIds } from './fan-out-model'
 import type { FanOutSlice } from './fan-out-model'
 import type { CompareViewAction, CompareViewSlice } from './compare-view-model'
-import type { RuntimeGateway } from './ports/runtime-gateway'
+import type { MergeWinnerResult, RuntimeGateway } from './ports/runtime-gateway'
 import { describeFailure } from './i18n/user-facing-error'
 
 export type CompareMergeGatewayPort = Pick<RuntimeGateway, 'gitMergeWinnerIntoParent'>
@@ -39,17 +39,31 @@ export async function runCompareMerge(
       undefined,
       syncWorkingTree
     )
-    deps.dispatch(
-      result.outcome === 'clean'
-        ? {
-            type: 'merge-clean',
-            commitOid: result.commitOid,
-            ...(result.workingTree ? { workingTree: result.workingTree } : {}),
-            ...(result.dependencySetup ? { dependencySetup: result.dependencySetup } : {})
-          }
-        : { type: 'merge-conflict', files: result.files }
-    )
+    deps.dispatch(mergeResultAction(result))
   } catch (error) {
     deps.dispatch({ type: 'merge-error', message: describeFailure('compareMerge', error) })
+  }
+}
+
+function mergeResultAction(result: MergeWinnerResult): CompareViewAction {
+  switch (result.outcome) {
+    case 'clean':
+      return {
+        type: 'merge-clean',
+        commitOid: result.commitOid,
+        ...(result.workingTree ? { workingTree: result.workingTree } : {}),
+        ...(result.dependencySetup ? { dependencySetup: result.dependencySetup } : {})
+      }
+    case 'conflict':
+      return { type: 'merge-conflict', files: result.files }
+    case 'blocked':
+      return {
+        type: 'merge-blocked',
+        reason: result.reason,
+        paths: result.paths,
+        ...(result.message !== undefined ? { message: result.message } : {})
+      }
+    case 'already-merged':
+      return { type: 'merge-already-merged', commitOid: result.commitOid }
   }
 }

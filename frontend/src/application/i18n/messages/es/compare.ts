@@ -14,8 +14,20 @@ export const esCompare: Record<keyof typeof enCompare, string> = {
   'compare.syncParent': 'sincronizar el padre',
   'compare.mergedClean':
     'Mergeado al padre ({oid}). Sincronizá el worktree padre (reset/checkout) para ver los cambios.',
-  'compare.parentSynced': 'padre sincronizado.',
+  'compare.mergedSynced': 'Mergeado al padre ({oid}) — padre sincronizado.',
+  'compare.mergedUnsynced':
+    'Mergeado al padre ({oid}), pero sus archivos no se actualizaron: el padre muestra el merge invertido hasta que lo termines o lo deshagas.',
+  'compare.unsyncedRecovery':
+    'En el worktree padre: deshacelo con `git reset --soft {previous}`, o mové los archivos que bloquean y terminalo con `git read-tree -u -m {previous} HEAD`.',
   'compare.parentSkipped': 'padre no sincronizado: tiene cambios sin commitear.',
+  'compare.blocked.untracked-overwrite':
+    'El padre tiene archivos que el ganador sobrescribiría — no se mergeó nada. Movelos o borralos y volvé a mergear:',
+  'compare.blocked.dirty-parent':
+    'El padre tiene cambios sin commitear en archivos que el ganador modifica — no se mergeó nada. Commitealos o guardalos con stash y volvé a mergear:',
+  'compare.blocked.sync-refused': 'No se puede actualizar el worktree padre — no se mergeó nada.',
+  'compare.blocked.sync-failed':
+    'Falló la actualización del worktree padre, así que el merge se deshizo — no se mergeó nada.',
+  'compare.alreadyMerged': 'El padre ya contiene este ganador ({oid}) — no hay nada que mergear.',
   'compare.reinstalling': 'reinstalando dependencias del padre en segundo plano (setup).',
   'compare.winner': 'ganador',
   'compare.pickWinner': 'elegir ganador',
