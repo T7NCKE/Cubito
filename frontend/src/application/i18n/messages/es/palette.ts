@@ -15,5 +15,7 @@ export const esPalette: Record<keyof typeof enPalette, string> = {
   'palette.openFile': 'abrir archivo',
   'palette.queryPlaceholder': 'escribí un comando…',
   'palette.footer': '↑↓ navegar · ⏎ ejecutar · esc cerrar',
-  'palette.switchLanguage': 'Language: English'
+  'palette.switchLanguage': 'Language: English',
+  // Why: both names stay searchable whichever language the label is in.
+  'palette.switchLanguage.keywords': 'language idioma english español espanol'
 }

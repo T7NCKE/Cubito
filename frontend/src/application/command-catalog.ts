@@ -28,6 +28,8 @@ export type PaletteCommand = {
   readonly id: CommandId
   readonly label: string
   readonly keybindingHint: string
+  /** Extra searchable text beyond the label (lowercase, space separated). */
+  readonly keywords?: string
   readonly isAvailable: (availability: CommandAvailability) => boolean
 }
 
@@ -123,6 +125,7 @@ export const commandCatalog = (platform: { isMac: boolean }): readonly PaletteCo
     id: 'switch-language',
     label: t('palette.switchLanguage'),
     keybindingHint: '—',
+    keywords: t('palette.switchLanguage.keywords'),
     isAvailable: () => true
   }
 ]

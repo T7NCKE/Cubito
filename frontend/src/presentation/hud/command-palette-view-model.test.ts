@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setActiveLanguage } from '../../application/i18n/translate'
 import { commandPaletteViewModel } from './command-palette-view-model'
 import { commandCatalog } from '../../application/command-catalog'
 import type { CommandPaletteSlice } from '../../application/command-palette-model'
@@ -73,5 +74,19 @@ describe('commandPaletteViewModel', () => {
     const focus = model?.rows.find((r) => r.id === 'focus')
     expect(focus?.highlighted).toBe(true)
     expect(focus?.available).toBe(false)
+  })
+
+  describe('language command keywords', () => {
+    afterEach(() => setActiveLanguage('es'))
+
+    it.each(['en', 'es'] as const)('is found by language/idioma/english/español in %s', (lang) => {
+      setActiveLanguage(lang)
+      const localized = commandCatalog({ isMac: true })
+      for (const query of ['language', 'idioma', 'english', 'español', 'espanol']) {
+        const slice: CommandPaletteSlice = { view: 'open', query, highlightedIndex: 0 }
+        const model = commandPaletteViewModel(slice, localized, allAvailable)
+        expect(model?.rows.map((r) => r.id)).toEqual(['switch-language'])
+      }
+    })
   })
 })

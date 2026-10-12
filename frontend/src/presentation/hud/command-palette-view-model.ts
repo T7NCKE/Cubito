@@ -22,7 +22,9 @@ export type CommandPaletteViewModel = {
 const matchesQuery = (command: PaletteCommand, query: string): boolean => {
   const q = query.trim().toLowerCase()
   if (q === '') return true
-  return command.label.toLowerCase().includes(q)
+  return (
+    command.label.toLowerCase().includes(q) || (command.keywords ?? '').toLowerCase().includes(q)
+  )
 }
 
 /** Wraps highlightedIndex into `[0, total)` — always yields a valid highlight, wrapping either direction. */

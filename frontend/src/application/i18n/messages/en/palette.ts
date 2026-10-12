@@ -14,5 +14,7 @@ export const enPalette = {
   'palette.queryPlaceholder': 'type a command…',
   'palette.footer': '↑↓ navigate · ⏎ run · esc close',
   // Why: the toggle names the language it switches TO, in that language, so it stays findable.
-  'palette.switchLanguage': 'Idioma: Español'
+  'palette.switchLanguage': 'Idioma: Español',
+  // Why: both names stay searchable whichever language the label is in.
+  'palette.switchLanguage.keywords': 'language idioma english español espanol'
 } as const
