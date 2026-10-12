@@ -9,6 +9,8 @@ const TONE_VAR: Record<SpawnChipTone, string> = {
 export type SpawnMenuHandle = {
   readonly object: CSS2DObject
   apply(model: SpawnRadialViewModel): void
+  /** Gap (px) from the node center to the first chip; null restores the CSS default. */
+  setClearance(px: number | null): void
   dispose(): void
 }
 
@@ -48,6 +50,9 @@ export function createSpawnMenu(doc: Document = document): SpawnMenuHandle {
         chipElement.appendChild(label)
         root.appendChild(chipElement)
       }
+    },
+    setClearance(px) {
+      root.style.paddingLeft = px === null ? '' : `${px}px`
     },
     dispose() {
       root.remove()

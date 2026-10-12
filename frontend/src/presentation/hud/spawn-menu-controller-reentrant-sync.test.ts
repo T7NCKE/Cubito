@@ -37,6 +37,7 @@ const createFakeMenu = (): FakeMenu => {
     object: { position: { set: vi.fn() } } as unknown as SpawnMenuHandle['object'],
     applyCalls: 0,
     apply: () => menu.applyCalls++,
+    setClearance: vi.fn(),
     dispose: vi.fn()
   }
   return menu

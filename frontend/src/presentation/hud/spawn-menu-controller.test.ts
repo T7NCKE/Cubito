@@ -24,6 +24,7 @@ const createFakeMenu = (): FakeMenu => {
     applyCalls: 0,
     disposed: false,
     apply: vi.fn(() => menu.applyCalls++),
+    setClearance: vi.fn(),
     dispose: vi.fn(() => (menu.disposed = true))
   }
   return menu
@@ -393,6 +394,25 @@ describe('createSpawnMenuController', () => {
     controller.tick()
     expect(deps.nodeCenter).toHaveBeenCalledWith('a')
     expect(menus[0]!.object.position.set).toHaveBeenCalled()
+  })
+
+  it('pushes the chips past the edge of a zoomed-in cube', () => {
+    const { controller, menus, deps } = setup()
+    deps.cubeRect = vi.fn(() => ({ left: 100, right: 400, top: 0, bottom: 300 }))
+    controller.sync(radialSlice(), emptyWorktreeGraph())
+    controller.tick()
+    expect(menus[0]!.setClearance).toHaveBeenLastCalledWith(164)
+  })
+
+  it('never goes below the default clearance for a small cube or an unknown rect', () => {
+    const { controller, menus, deps } = setup()
+    deps.cubeRect = vi.fn(() => ({ left: 0, right: 56, top: 0, bottom: 56 }))
+    controller.sync(radialSlice(), emptyWorktreeGraph())
+    controller.tick()
+    expect(menus[0]!.setClearance).toHaveBeenLastCalledWith(60)
+    deps.cubeRect = vi.fn(() => null)
+    controller.tick()
+    expect(menus[0]!.setClearance).toHaveBeenLastCalledWith(null)
   })
 
   it('rebindGateway swaps the gateway used by a subsequent submit', async () => {

@@ -544,6 +544,7 @@ function bindSpawn(connection: LiveSyncConnection): void {
     hud: hudElement,
     dispatch: (action) => store.dispatchSpawn(action),
     nodeCenter: (id) => graphView.nodeCenter(id),
+    cubeRect: (id) => graphView.nodeCubeRect(id, projectLabelAnchor),
     refetch: () => syncWorktreeGraph(spawnGateway, store),
     selectCreated: (worktreeId) => {
       if (store.get().graph.nodes.has(worktreeId)) store.select(worktreeId)

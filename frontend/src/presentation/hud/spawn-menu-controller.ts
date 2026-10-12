@@ -6,11 +6,17 @@ import type { SpawnMenuAction, SpawnMenuSlice } from '../../application/spawn-me
 import { generatedWorktreeName, toCreateWorktreeInput } from '../../application/spawn-menu-model'
 import { repoSelectorForNode } from '../../application/anchor-repo-selector'
 import type { RuntimeGateway } from '../../application/ports/runtime-gateway'
+import type { LabelRect } from './label-collision-model'
 import type { SpawnMenuHandle } from './spawn-menu-element'
 import type { SpawnFormHandle } from './spawn-form-element'
 import { createSetupHintTracker } from '../../application/repo-setup-hint'
 import { repoSetupSaved } from '../../application/repo-setup-saved'
 import { spawnViewModel } from './spawn-view-model'
+
+/** Matches `.cubito-spawn-menu` padding-left: the clearance never drops below the default look. */
+const RADIAL_MIN_CLEARANCE_PX = 60
+/** Space between a zoomed-in cube's edge and the first chip. */
+const RADIAL_CUBE_GAP = 14
 
 /** Only the two methods spawn needs — narrow like the other controller ports in this dir. */
 export type SpawnGatewayPort = Pick<
@@ -26,6 +32,8 @@ export type SpawnMenuControllerDeps = {
   hud: { appendChild(element: unknown): void }
   dispatch: (action: SpawnMenuAction) => void
   nodeCenter: (nodeId: WorktreeId) => Vec3 | null
+  /** Projected screen rect of a node's cube — the radial's chips must start past its edge. */
+  cubeRect?: (nodeId: WorktreeId) => LabelRect | null
   /** Fired after a successful create — snappier than waiting for the 2s live-sync poll. */
   refetch: () => Promise<void>
   /** Selects the new node once the post-create refetch has put it in the graph. */
@@ -190,6 +198,13 @@ export function createSpawnMenuController(deps: SpawnMenuControllerDeps): SpawnM
       const center = deps.nodeCenter(currentNodeId)
       if (!center) return
       menu.object.position.set(center.x, center.y, center.z)
+      // Why: a zoomed-in cube (`f`) is far wider than the CSS default gap, and chips would cover it.
+      const rect = deps.cubeRect?.(currentNodeId)
+      menu.setClearance(
+        rect
+          ? Math.max(RADIAL_MIN_CLEARANCE_PX, (rect.right - rect.left) / 2 + RADIAL_CUBE_GAP)
+          : null
+      )
     },
     rebindGateway(newGateway: SpawnGatewayPort): void {
       gateway = newGateway
