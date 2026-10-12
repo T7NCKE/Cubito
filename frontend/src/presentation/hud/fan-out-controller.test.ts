@@ -756,10 +756,10 @@ describe('createFanOutController — gate resolve / question answer (Change F)',
   })
 })
 
-describe('createFanOutController — running panel visibility', () => {
-  const visibleCalls = (form: FakeForm) =>
-    (form.setVisible as ReturnType<typeof vi.fn>).mock.calls.map(([v]) => v)
+const visibleCalls = (form: FakeForm) =>
+  (form.setVisible as ReturnType<typeof vi.fn>).mock.calls.map(([v]) => v)
 
+describe('createFanOutController — running panel visibility', () => {
   it('shows a busy litter and hides it once dismissed, until the next run', () => {
     const { controller, forms } = setup()
     const graph = graphWithParent('repo-1')
