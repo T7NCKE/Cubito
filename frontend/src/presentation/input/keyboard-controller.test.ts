@@ -514,6 +514,15 @@ describe('createKeyboardController', () => {
       expect(store.get().spawnMenu).toMatchObject({ view: 'form', parentId: 'a' })
     })
 
+    it('Shift+F from the open radial opens the fan-out form and closes the radial', () => {
+      const { store, controller } = setup('a')
+      controller.handleKeyDown(baseEvent({ key: 's' }))
+      const handled = controller.handleKeyDown(baseEvent({ key: 'F', shiftKey: true }))
+      expect(handled).toBe(true)
+      expect(store.get().spawnMenu.view).toBe('closed')
+      expect(store.get().fanOut.view).not.toBe('closed')
+    })
+
     it('s while the form is already open is a no-op', () => {
       const { store, controller } = setup(null)
       controller.handleKeyDown(baseEvent({ key: 's' }))

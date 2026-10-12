@@ -311,6 +311,8 @@ export function createKeyboardController(deps: KeyboardControllerDeps): Keyboard
     if (command.kind === 'open-fan-out') {
       const selectedId = store.get().selection.selectedId
       if (selectedId === null) return false
+      // The radial's F chip: leaving it open would stack its chips over the fan-out form.
+      if (store.get().spawnMenu.view === 'radial') store.dispatchSpawn({ type: 'cancel' })
       store.dispatchFanOut({ type: 'open-for-node', nodeId: selectedId })
       return true
     }
