@@ -54,6 +54,8 @@ export type SceneState = {
   camera: { height: CameraHeight }
   /** Last pick per island, restored when it's re-activated (island-focus). */
   islandSelections: IslandSelections
+  /** Fan-out children remembered across a reload so compare stays reachable (litter-memory.ts). */
+  rememberedLitter: readonly WorktreeId[]
 }
 
 export type SceneStore = {
@@ -98,7 +100,8 @@ const initialSceneState = (): SceneState => ({
   diffView: emptyDiffViewSlice(),
   compareView: emptyCompareViewSlice(),
   camera: { height: DEFAULT_CAMERA_HEIGHT },
-  islandSelections: new Map()
+  islandSelections: new Map(),
+  rememberedLitter: []
 })
 
 const focusOf = (s: SceneState): IslandFocus => ({

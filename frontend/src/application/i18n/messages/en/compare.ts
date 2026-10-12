@@ -1,5 +1,6 @@
 export const enCompare = {
   'compare.hudMode': 'compare the litter',
+  'compare.noLitter': 'nothing to compare yet: launch a fan-out first',
   'compare.noWinner': 'none picked',
   'compare.hudWinner': '{children} · winner: {winner}',
   'compare.children.one': '{count} child',

@@ -8,12 +8,12 @@ const catalog = commandCatalog({ isMac: true })
 const allAvailable: CommandAvailability = {
   hasSelection: true,
   isConnected: true,
-  hasRunningCamada: true
+  hasLitter: true
 }
 const noneAvailable: CommandAvailability = {
   hasSelection: false,
   isConnected: false,
-  hasRunningCamada: false
+  hasLitter: false
 }
 
 describe('commandPaletteViewModel', () => {

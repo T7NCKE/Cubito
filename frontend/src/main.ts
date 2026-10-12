@@ -21,6 +21,7 @@ import { createSystemViewBinder } from './bind-system-view'
 import { demoSystemGraph } from './demo-system-graph'
 import { createDiffViewBinder } from './bind-diff-view'
 import { createCompareViewBinder } from './bind-compare-view'
+import { bindLitterMemory } from './bind-litter-memory'
 import { createWorktreeDeleteBinder } from './bind-worktree-delete'
 import { createFileWorkspaceBinder } from './bind-file-workspace'
 import { createSourceControlBinder } from './bind-source-control'
@@ -55,7 +56,7 @@ import type { CanvasBox } from './presentation/scene/canvas-box-remeasure'
 import { sceneSelectedId } from './application/compare-view-model'
 import { fanOutParentId } from './application/fan-out-model'
 import { switchLanguage } from './application/i18n/language-preference'
-import { activeLanguage, setActiveLanguage } from './application/i18n/translate'
+import { activeLanguage, setActiveLanguage, t } from './application/i18n/translate'
 import { applyCssTheme } from './presentation/theme/css-theme'
 import { FOCUS_DURATION_MS } from './presentation/theme/scene-metrics'
 import { paletteFor } from './presentation/theme/scene-palette'
@@ -370,7 +371,16 @@ const keyboardController = createKeyboardController({
   diff: diffViewBinder,
   worktreeDelete: worktreeDeleteBinder,
   fileWorkspace: fileWorkspaceBinder,
-  platform
+  platform,
+  notice: (body) =>
+    attentionToasts.show({
+      notificationId: null,
+      seq: null,
+      title: t('compare.hudMode'),
+      body,
+      worktreeId: null,
+      agentState: null
+    })
 })
 keyboardController.attach(window)
 
@@ -577,6 +587,7 @@ const attentionBinder = createAttentionNotificationBinder({
 })
 
 const pairingStorage = tryGetSessionStorage()
+bindLitterMemory(store, pairingStorage)
 const pairingEntry = decidePairingEntry(
   resolvePairingSource(consumePairingFragment(), pairingStorage)
 )

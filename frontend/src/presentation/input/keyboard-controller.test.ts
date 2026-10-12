@@ -1134,6 +1134,44 @@ describe('createKeyboardController', () => {
       expect(store.get().compareView.view).toBe('closed')
     })
 
+    describe('after a reload (fan-out slice gone)', () => {
+      const withNotice = (rememberedLitter: readonly string[]) => {
+        const notice = vi.fn()
+        const store = createSceneStore()
+        store.update({ graph: buildFanGraph(), selection: { selectedId: 'a' }, rememberedLitter })
+        const controller = createKeyboardController({
+          store,
+          heights: fakeHeights(),
+          terminal: fakeTerminalCommandPort(),
+          diff: { select: vi.fn() },
+          worktreeDelete: fakeWorktreeDelete(),
+          fileWorkspace: {
+            openPicker: vi.fn(),
+            openFile: vi.fn(),
+            isOpen: () => false,
+            requestClose: () => false
+          },
+          platform: LINUX,
+          notice
+        })
+        return { store, controller, notice }
+      }
+
+      it('c compares the remembered litter', () => {
+        const { store, controller, notice } = withNotice(['a', 'b'])
+        expect(controller.handleKeyDown(baseEvent({ key: 'c' }))).toBe(true)
+        expect(store.get().compareView).toMatchObject({ view: 'open', members: ['a', 'b'] })
+        expect(notice).not.toHaveBeenCalled()
+      })
+
+      it('c shows a hint when there is no litter to restore', () => {
+        const { store, controller, notice } = withNotice(['gone'])
+        expect(controller.handleKeyDown(baseEvent({ key: 'c' }))).toBe(true)
+        expect(store.get().compareView.view).toBe('closed')
+        expect(notice).toHaveBeenCalledOnce()
+      })
+    })
+
     it('g closes an open compareView', () => {
       const { store, controller } = setup(null)
       withRunningCamada(store, 'root', ['child-1'])

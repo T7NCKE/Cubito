@@ -1,5 +1,6 @@
 import type { SceneState } from './scene-store'
 import { t } from './i18n/translate'
+import { compareLitterMembers } from './compare-litter'
 
 export type CommandId =
   | 'focus'
@@ -19,8 +20,8 @@ export type CommandId =
 export type CommandAvailability = {
   readonly hasSelection: boolean
   readonly isConnected: boolean
-  /** True while the fanOut slice is 'running' — open-compare's anchor, not selection. */
-  readonly hasRunningCamada: boolean
+  /** True while there is a litter to compare (running or restored) — open-compare's anchor, not selection. */
+  readonly hasLitter: boolean
 }
 
 export type PaletteCommand = {
@@ -35,7 +36,7 @@ export type PaletteCommand = {
 export const toCommandAvailability = (state: SceneState): CommandAvailability => ({
   hasSelection: state.selection.selectedId !== null,
   isConnected: state.connection.state === 'connected',
-  hasRunningCamada: state.fanOut.view === 'running'
+  hasLitter: compareLitterMembers(state).length > 0
 })
 
 /** Static, ordered ⌘K catalog (proposal order). Pure and deterministic given platform — the one
@@ -102,8 +103,8 @@ export const commandCatalog = (platform: { isMac: boolean }): readonly PaletteCo
     id: 'open-compare',
     label: t('palette.openCompare'),
     keybindingHint: 'c',
-    // Anchor is the running camada, not selection — hasSelection is irrelevant here.
-    isAvailable: (a) => a.hasRunningCamada
+    // Anchor is the litter, not selection — hasSelection is irrelevant here.
+    isAvailable: (a) => a.hasLitter
   },
   {
     id: 'delete-worktree',

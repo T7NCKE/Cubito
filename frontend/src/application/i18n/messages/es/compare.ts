@@ -2,6 +2,7 @@ import type { enCompare } from '../en/compare'
 
 export const esCompare: Record<keyof typeof enCompare, string> = {
   'compare.hudMode': 'comparar la camada',
+  'compare.noLitter': 'todavía no hay nada para comparar: lanzá un fan-out primero',
   'compare.noWinner': 'sin elegir',
   'compare.hudWinner': '{children} · ganador: {winner}',
   'compare.children.one': '{count} hijo',

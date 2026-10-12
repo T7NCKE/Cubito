@@ -31,6 +31,7 @@ const state = (overrides: Partial<SceneState> = {}): SceneState => ({
   compareView: emptyCompareViewSlice(),
   camera: { height: DEFAULT_CAMERA_HEIGHT },
   islandSelections: new Map(),
+  rememberedLitter: [],
   ...overrides
 })
 
@@ -43,7 +44,7 @@ const findCommand = (catalog: ReturnType<typeof commandCatalog>, id: CommandId) 
 const avail = (overrides: Partial<CommandAvailability> = {}): CommandAvailability => ({
   hasSelection: false,
   isConnected: false,
-  hasRunningCamada: false,
+  hasLitter: false,
   ...overrides
 })
 
@@ -136,19 +137,11 @@ describe('commandCatalog', () => {
     ['open-file', avail({ hasSelection: true, isConnected: false }), false],
     ['open-file', avail({ hasSelection: false, isConnected: true }), false],
     ['switch-language', avail(), true],
-    ['open-compare', avail({ hasRunningCamada: true }), true],
-    ['open-compare', avail({ hasRunningCamada: false }), false],
-    // selection/connection are irrelevant to open-compare — only hasRunningCamada gates it.
-    [
-      'open-compare',
-      avail({ hasSelection: true, isConnected: true, hasRunningCamada: false }),
-      false
-    ],
-    [
-      'open-compare',
-      avail({ hasSelection: false, isConnected: false, hasRunningCamada: true }),
-      true
-    ]
+    ['open-compare', avail({ hasLitter: true }), true],
+    ['open-compare', avail({ hasLitter: false }), false],
+    // selection/connection are irrelevant to open-compare — only hasLitter gates it.
+    ['open-compare', avail({ hasSelection: true, isConnected: true, hasLitter: false }), false],
+    ['open-compare', avail({ hasSelection: false, isConnected: false, hasLitter: true }), true]
   ]
 
   it.each(matrix)('%s isAvailable(%o) => %s', (id, availability, expected) => {
@@ -182,8 +175,8 @@ describe('toCommandAvailability', () => {
     ).toBe(false)
   })
 
-  it('hasRunningCamada reflects fanOut.view === "running", not form/closed', () => {
-    expect(toCommandAvailability(state()).hasRunningCamada).toBe(false)
+  it('hasLitter is true for a running fan-out with created children, or a remembered litter still in the graph', () => {
+    expect(toCommandAvailability(state()).hasLitter).toBe(false)
     expect(
       toCommandAvailability(
         state({
@@ -194,7 +187,7 @@ describe('toCommandAvailability', () => {
             repoSelector: null
           }
         })
-      ).hasRunningCamada
+      ).hasLitter
     ).toBe(false)
     expect(
       toCommandAvailability(
@@ -204,13 +197,22 @@ describe('toCommandAvailability', () => {
             parentId: 'w1',
             fields: { count: 1, agent: 'none', prompt: '' },
             repoSelector: 'id:repo-a',
-            batch: [],
+            batch: [
+              {
+                mutationId: 'm0',
+                worktreeId: 'w2',
+                failed: false,
+                dispatchId: null,
+                taskId: null
+              }
+            ],
             memberStatus: {},
             runId: null
           }
         })
-      ).hasRunningCamada
+      ).hasLitter
     ).toBe(true)
+    expect(toCommandAvailability(state({ rememberedLitter: ['gone'] })).hasLitter).toBe(false)
   })
 })
 

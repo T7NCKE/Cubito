@@ -3,7 +3,8 @@ import { isTextEntryTarget, resolveNavCommand } from '../navigation/keymap'
 import { islandEntrySelection, moveSelection } from '../navigation/selection-model'
 import { islandLanding } from '../../application/island-focus'
 import { cycleIsland, nextIsland } from '../../application/repos-model'
-import { fanOutMemberIds } from '../../application/fan-out-model'
+import { compareLitterMembers } from '../../application/compare-litter'
+import { t } from '../../application/i18n/translate'
 import { stepCompareFocus } from '../../application/compare-view-model'
 import { stepDiffSelection } from '../../application/diff-view-model'
 import type { CameraHeightController } from './camera-height-controller'
@@ -56,6 +57,8 @@ export type KeyboardControllerDeps = {
   fileWorkspace: FileWorkspacePort
   /** Mac vs. Linux/Windows — selects the ⌘P/Ctrl+P chord (PROJ-005). */
   platform: { isMac: boolean }
+  /** Localized one-line hint for a key that is valid but has nothing to act on yet. */
+  notice?: (message: string) => void
 }
 
 export type KeyboardController = {
@@ -325,12 +328,14 @@ export function createKeyboardController(deps: KeyboardControllerDeps): Keyboard
       return true
     }
     if (command.kind === 'open-compare') {
-      // Anchors on the RUNNING CAMADA, not selectedId — 'fanOut' never auto-closes while running,
-      // so it reliably holds the current litter regardless of what's selected in the graph.
-      const fanOut = store.get().fanOut
-      if (fanOut.view !== 'running') return false
-      const litter = fanOutMemberIds(fanOut).slice(1) // drop the parent, keep only the children
-      if (litter.length === 0) return false
+      // Anchors on the litter (running fan-out, else the one remembered across a reload), not on
+      // the selection.
+      const litter = compareLitterMembers(store.get())
+      if (litter.length === 0) {
+        if (!deps.notice) return false
+        deps.notice(t('compare.noLitter'))
+        return true
+      }
       store.dispatchCompareView({ type: 'open', members: litter })
       return true
     }

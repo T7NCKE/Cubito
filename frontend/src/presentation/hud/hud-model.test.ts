@@ -39,6 +39,7 @@ const baseState = (overrides: Partial<SceneState> = {}): SceneState => ({
   compareView: emptyCompareViewSlice(),
   camera: { height: DEFAULT_CAMERA_HEIGHT },
   islandSelections: new Map(),
+  rememberedLitter: [],
   ...overrides
 })
 

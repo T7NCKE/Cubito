@@ -10,7 +10,7 @@ import type {
   WorktreeDeletePort
 } from '../input/keyboard-controller'
 import type { CameraHeightController } from '../input/camera-height-controller'
-import { fanOutMemberIds } from '../../application/fan-out-model'
+import { compareLitterMembers } from '../../application/compare-litter'
 import type { Language } from '../../application/i18n/language'
 import { activeLanguage } from '../../application/i18n/translate'
 
@@ -94,10 +94,8 @@ export function createCommandPaletteController(
       store.dispatchDiffView({ type: 'open', nodeId: selectedId, baseRef: '' })
     },
     'open-compare': () => {
-      // Anchors on the RUNNING CAMADA, not selection — same rule as the keyboard controller's 'c'.
-      const fanOut = store.get().fanOut
-      if (fanOut.view !== 'running') return
-      const litter = fanOutMemberIds(fanOut).slice(1) // drop the parent, keep only the children
+      // Anchors on the litter, not selection — same rule as the keyboard controller's 'c'.
+      const litter = compareLitterMembers(store.get())
       if (litter.length === 0) return
       store.dispatchCompareView({ type: 'open', members: litter })
     },
