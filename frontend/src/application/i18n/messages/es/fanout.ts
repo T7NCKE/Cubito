@@ -7,6 +7,10 @@ export const esFanout: Record<keyof typeof enFanout, string> = {
   'fanout.submit': 'lanzar camada',
   'fanout.dismiss': 'cerrar',
   'fanout.cancel': 'cancelar',
+  'fanout.label.count': 'cubos',
+  'fanout.label.agent': 'agente',
+  'fanout.label.prompt': 'prompt',
+  'fanout.placeholder.prompt': 'qué tiene que hacer cada cubo',
   'fanout.counters':
     '{working} trabajando · {waiting} esperando · {spawning} naciendo · {ready} · {gates} · {questions}',
   'fanout.ready.one': '{count} listo',

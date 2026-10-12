@@ -5,6 +5,10 @@ export const enFanout = {
   'fanout.submit': 'launch fan-out',
   'fanout.dismiss': 'dismiss',
   'fanout.cancel': 'cancel',
+  'fanout.label.count': 'cubes',
+  'fanout.label.agent': 'agent',
+  'fanout.label.prompt': 'prompt',
+  'fanout.placeholder.prompt': 'what each cube should do',
   'fanout.counters':
     '{working} working · {waiting} waiting · {spawning} spawning · {ready} · {gates} · {questions}',
   'fanout.ready.one': '{count} ready',

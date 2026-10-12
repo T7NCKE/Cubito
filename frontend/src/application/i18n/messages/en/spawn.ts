@@ -9,6 +9,13 @@ export const enSpawn = {
   'spawn.submit': 'create worktree',
   'spawn.submitting': 'creating…',
   'spawn.cancel': 'cancel',
+  'spawn.label.name': 'name',
+  'spawn.label.agent': 'agent',
+  'spawn.label.base': 'base branch',
+  'spawn.label.prompt': 'prompt',
+  'spawn.placeholder.name': 'optional · generated if left empty',
+  'spawn.placeholder.base': 'optional · the default base',
+  'spawn.placeholder.prompt': 'what the agent should do',
   'spawn.hint': '⏎ create · esc cancel',
   'spawn.repoUnresolved': 'repository not resolved yet',
   'spawn.noSetupHint': 'no setup: the worktree starts without dependencies (configure it in ⌘P)'

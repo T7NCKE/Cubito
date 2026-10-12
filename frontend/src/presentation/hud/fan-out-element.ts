@@ -5,6 +5,7 @@ import { t } from '../../application/i18n/translate'
 import { renderFailureText } from '../failure-text-element'
 import { AGENT_OPTIONS, agentOptionLabel } from './spawn-agent-options'
 import { resolveSpawnFormKey } from './spawn-form-element'
+import { createFormFieldLabel } from './form-field-label'
 
 export type FanOutFormHandle = {
   readonly element: HTMLElement
@@ -82,10 +83,20 @@ export function createFanOutForm(doc: Document = document): FanOutFormHandle {
 
   const gateList = createFanOutGateList(doc)
 
+  promptArea.placeholder = t('fanout.placeholder.prompt')
+  const labelOf = (key: Parameters<typeof t>[0], field: HTMLElement): HTMLElement =>
+    createFormFieldLabel(doc, 'cubito-form-label', t(key), field)
+  const countLabel = labelOf('fanout.label.count', countInput)
+  const agentLabel = labelOf('fanout.label.agent', agentSelect)
+  const promptLabel = labelOf('fanout.label.prompt', promptArea)
+
   for (const child of [
     title,
+    countLabel,
     countInput,
+    agentLabel,
     agentSelect,
+    promptLabel,
     promptArea,
     errorLine,
     setupNotice,
@@ -139,6 +150,7 @@ export function createFanOutForm(doc: Document = document): FanOutFormHandle {
   const showFields = (visible: boolean): void => {
     const display = visible ? '' : 'none'
     title.style.display = display
+    for (const label of [countLabel, agentLabel, promptLabel]) label.style.display = display
     countInput.style.display = display
     agentSelect.style.display = display
     promptArea.style.display = display

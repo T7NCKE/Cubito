@@ -1,6 +1,7 @@
 import { t } from '../../application/i18n/translate'
 import { renderFailureText } from '../failure-text-element'
 import { AGENT_OPTIONS, agentOptionLabel } from './spawn-agent-options'
+import { createFormFieldLabel } from './form-field-label'
 import type { SpawnFormFields } from '../../application/spawn-menu-model'
 import type { SpawnFormViewModel } from './spawn-view-model'
 
@@ -76,11 +77,21 @@ export function createSpawnForm(doc: Document = document): SpawnFormHandle {
   hint.className = 'cubito-spawn-form__hint'
   hint.textContent = t('spawn.hint')
 
+  nameInput.placeholder = t('spawn.placeholder.name')
+  baseInput.placeholder = t('spawn.placeholder.base')
+  promptArea.placeholder = t('spawn.placeholder.prompt')
+  const labelOf = (key: Parameters<typeof t>[0], field: HTMLElement): HTMLElement =>
+    createFormFieldLabel(doc, 'cubito-form-label', t(key), field)
+
   for (const child of [
     title,
+    labelOf('spawn.label.name', nameInput),
     nameInput,
+    labelOf('spawn.label.agent', agentSelect),
     agentSelect,
+    labelOf('spawn.label.base', baseInput),
     baseInput,
+    labelOf('spawn.label.prompt', promptArea),
     promptArea,
     errorLine,
     setupNotice,
