@@ -1,4 +1,4 @@
-import { compareLitterMembers } from './application/compare-litter'
+import { runningLitterMembers } from './application/compare-litter'
 import { readRememberedLitter, rememberLitter } from './application/litter-memory'
 import type { LitterStorage } from './application/litter-memory'
 import type { SceneStore } from './application/scene-store'
@@ -9,7 +9,7 @@ export function bindLitterMemory(store: SceneStore, storage: LitterStorage | nul
   return store.subscribe((state) => {
     // Only a live fan-out redefines the litter; otherwise keep what was restored.
     if (state.fanOut.view !== 'running') return
-    const members = compareLitterMembers(state)
+    const members = runningLitterMembers(state)
     const same =
       members.length === state.rememberedLitter.length &&
       members.every((id, index) => id === state.rememberedLitter[index])
