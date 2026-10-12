@@ -43,6 +43,9 @@ export type DiffLiveLoader = {
  */
 const DEFAULT_REFRESH_INTERVAL_MS = 3000
 
+const sameRows = (a: readonly DiffFileRow[], b: readonly DiffFileRow[]): boolean =>
+  a.length === b.length && a.every((row, i) => JSON.stringify(row) === JSON.stringify(b[i]))
+
 export function createDiffLiveLoader(deps: DiffLiveLoaderDeps): DiffLiveLoader {
   let gateway = deps.gateway
   let stopped = true
@@ -102,9 +105,6 @@ export function createDiffLiveLoader(deps: DiffLiveLoaderDeps): DiffLiveLoader {
       ...(entry.oldPath === undefined ? {} : { oldPath: entry.oldPath })
     }))
   }
-
-  const sameRows = (a: readonly DiffFileRow[], b: readonly DiffFileRow[]): boolean =>
-    a.length === b.length && a.every((row, i) => JSON.stringify(row) === JSON.stringify(b[i]))
 
   // Why: a poll must never flash 'loading' or an error over a rail the user is reading.
   async function pollRail(nodeId: WorktreeId): Promise<void> {
