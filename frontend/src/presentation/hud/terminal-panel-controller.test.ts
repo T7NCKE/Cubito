@@ -485,8 +485,45 @@ describe('createTerminalPanelController', () => {
       controller.focusActivePanel() // no-op, nothing mounted
       controller.sync(openedState())
       await flush()
+      controller.tick()
       controller.focusActivePanel()
       expect(panels[0]!.focus).toHaveBeenCalledOnce()
+    })
+
+    it('defers focus until the hidden panel is placed, then focuses it exactly once', async () => {
+      const { controller, panels } = setup()
+      controller.sync(openedState())
+      await flush()
+      controller.focusActivePanel()
+      expect(panels[0]!.focus).not.toHaveBeenCalled()
+      const element = panels[0]!.element as unknown as { offsetWidth: number }
+      element.offsetWidth = 0
+      controller.tick()
+      expect(panels[0]!.focus).not.toHaveBeenCalled()
+      element.offsetWidth = 520
+      controller.tick()
+      controller.tick()
+      expect(panels[0]!.focus).toHaveBeenCalledOnce()
+    })
+
+    it('does not focus a deferred panel after focus was exited', async () => {
+      const { controller, panels } = setup()
+      controller.sync(openedState())
+      await flush()
+      controller.focusActivePanel()
+      controller.exitFocus()
+      controller.tick()
+      expect(panels[0]!.focus).not.toHaveBeenCalled()
+    })
+
+    it('fits the shell to its real size once, when the panel is first placed', async () => {
+      const { controller, panels } = setup()
+      controller.sync(openedState())
+      await flush()
+      expect(panels[0]!.fitCalls).toBe(0)
+      controller.tick()
+      controller.tick()
+      expect(panels[0]!.fitCalls).toBe(1)
     })
 
     it('exitFocus() blurs the mounted panel and dispatches set-focused:false', async () => {

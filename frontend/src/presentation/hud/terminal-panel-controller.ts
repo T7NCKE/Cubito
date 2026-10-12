@@ -67,6 +67,10 @@ type Mounted = {
   unsubscribeData: () => void
   unsubscribeResize: () => void
   dispatchedOutput: boolean
+  /** Mirrors the panel's visibility: false until the renderer has laid it out and tick placed it. */
+  placed: boolean
+  /** `[t]` arrived while still hidden — focus (a no-op on a hidden node) waits for placement. */
+  focusPending: boolean
   /** Known once `terminal.create`/`onSubscribed` resolve — lets a later re-mount (tab switch,
    *  revisiting a node) skip `createTerminal` and just resubscribe the existing PTY handle. */
   handle: string | null
@@ -143,7 +147,21 @@ export function createTerminalPanelController(
     onEnd: () => {}
   })
 
+  /** Shows/hides the panel; the first reveal fits the shell to its real size and serves a deferred focus. */
+  const setPlaced = (entry: Mounted, placed: boolean): void => {
+    entry.panel.setPlaced(placed)
+    if (placed === entry.placed) return
+    entry.placed = placed
+    if (!placed) return
+    entry.panel.fit()
+    if (entry.focusPending) {
+      entry.focusPending = false
+      entry.panel.focus()
+    }
+  }
+
   const exitFocus = (): void => {
+    if (mounted) mounted.focusPending = false
     mounted?.panel.blur()
     deps.dispatch({ type: 'set-focused', focused: false })
   }
@@ -198,6 +216,8 @@ export function createTerminalPanelController(
       unsubscribeData,
       unsubscribeResize,
       dispatchedOutput: false,
+      placed: false,
+      focusPending: false,
       handle: cachedHandle
     }
     mounted = entry
@@ -247,7 +267,9 @@ export function createTerminalPanelController(
       mounted!.panel.apply(model)
     },
     focusActivePanel(): void {
-      mounted?.panel.focus()
+      if (!mounted) return
+      if (mounted.placed) mounted.panel.focus()
+      else mounted.focusPending = true
     },
     exitFocus,
     closeActiveSession(): void {
@@ -284,14 +306,14 @@ export function createTerminalPanelController(
       const { object, element } = mounted.panel
       if (mounted.placement !== 'scene') {
         object.center.set(0.5, 0.5)
-        mounted.panel.setPlaced(true)
+        setPlaced(mounted, true)
         connector.hide()
         return
       }
       // Why: an unattached panel measures 0 — stay hidden until the renderer has laid it out,
       // so the first visible frame is already at its final spot.
       if (!element.offsetWidth || !element.offsetHeight) {
-        mounted.panel.setPlaced(false)
+        setPlaced(mounted, false)
         connector.hide()
         return
       }
@@ -318,7 +340,7 @@ export function createTerminalPanelController(
         0.5 - (placed.x - panelScreen.x) / size.width,
         0.5 - (placed.y - panelScreen.y) / size.height
       )
-      mounted.panel.setPlaced(true)
+      setPlaced(mounted, true)
       connector.apply(nodeScreen, { ...panelScreen, x: placed.x, y: placed.y })
     },
     dispose(): void {
