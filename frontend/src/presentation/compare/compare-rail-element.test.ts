@@ -12,6 +12,7 @@ type FakeElement = {
   textContent: string
   title: string
   blurCount: number
+  parent: FakeElement | null
   appendChild(child: FakeElement): FakeElement
   replaceChildren(): void
   remove(): void
@@ -30,14 +31,22 @@ const createFakeElement = (tag: string): FakeElement => {
     textContent: '',
     title: '',
     blurCount: 0,
+    parent: null,
     appendChild(child) {
+      child.remove() // like the DOM: appending a node moves it
       el.children.push(child)
+      child.parent = el
       return child
     },
     replaceChildren() {
       el.children.length = 0
     },
-    remove() {},
+    remove() {
+      const siblings = el.parent?.children
+      const index = siblings?.indexOf(el) ?? -1
+      if (index >= 0) siblings!.splice(index, 1)
+      el.parent = null
+    },
     addEventListener(type, handler) {
       if (type === 'click') clickHandler = handler
     },
@@ -176,6 +185,60 @@ describe('createCompareRail', () => {
     rail.apply([row({ childId: 'a' })])
     rail.apply([row({ childId: 'b' }), row({ childId: 'c' })])
     expect(rootOf(rail).children).toHaveLength(2)
+  })
+
+  it('keeps the same row elements across updates so a click never lands on a detached node', () => {
+    const rail = createCompareRail(createFakeDocument())
+    rail.apply([row({ childId: 'a' }), row({ childId: 'b' })])
+    const [first, second] = [...rootOf(rail).children]
+
+    rail.apply([
+      row({ childId: 'a', statText: '2 archivos · +5 −1' }),
+      row({ childId: 'b', focused: true, cssClass: 'compare-rail__row--focused' })
+    ])
+
+    expect(rootOf(rail).children[0]).toBe(first)
+    expect(rootOf(rail).children[1]).toBe(second)
+    expect(first!.children[1]!.textContent).toBe('2 archivos · +5 −1')
+    expect(second!.className).toBe('compare-rail__row--focused')
+  })
+
+  it('a reused row reads the latest winner state on click', () => {
+    const rail = createCompareRail(createFakeDocument())
+    const winners: (string | null)[] = []
+    rail.onSetWinner((childId) => winners.push(childId))
+    rail.apply([row({ childId: 'a' })])
+    const toggle = rootOf(rail).children[0]!.children[2]!
+    rail.apply([row({ childId: 'a', isWinner: true })])
+    toggle.dispatchClick()
+    expect(winners).toEqual([null])
+  })
+
+  it('removes departed rows, adds new ones and follows the new order', () => {
+    const rail = createCompareRail(createFakeDocument())
+    rail.apply([row({ childId: 'a' }), row({ childId: 'b' })])
+    const b = rootOf(rail).children[1]!
+    rail.apply([row({ childId: 'b' }), row({ childId: 'c' })])
+    const labels = rootOf(rail).children.map((child) => child.children[0]!.textContent)
+    expect(labels).toEqual(['cubito-b', 'cubito-c'])
+    expect(rootOf(rail).children[0]).toBe(b)
+  })
+
+  it('adds and clears the failure line in place', () => {
+    const rail = createCompareRail(createFakeDocument())
+    rail.apply([row({ childId: 'a' })])
+    rail.apply([row({ childId: 'a', failure: { lead: 'boom', detail: null } })])
+    expect(rootOf(rail).children[0]!.children).toHaveLength(4)
+    rail.apply([row({ childId: 'a' })])
+    expect(rootOf(rail).children[0]!.children).toHaveLength(3)
+  })
+
+  it('goes back to rows after the empty state', () => {
+    const rail = createCompareRail(createFakeDocument())
+    rail.apply([])
+    rail.apply([row({ childId: 'a' })])
+    expect(rootOf(rail).children).toHaveLength(1)
+    expect(rootOf(rail).children[0]!.children[0]!.textContent).toBe('cubito-a')
   })
 
   it('dispose removes the root element', () => {
