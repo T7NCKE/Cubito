@@ -46,6 +46,22 @@ const DEFAULT_REFRESH_INTERVAL_MS = 3000
 const sameRows = (a: readonly DiffFileRow[], b: readonly DiffFileRow[]): boolean =>
   a.length === b.length && a.every((row, i) => JSON.stringify(row) === JSON.stringify(b[i]))
 
+const toRows = (
+  result: Extract<Awaited<ReturnType<typeof fetchBranchCompareEntries>>, { outcome: 'ready' }>,
+  workingResult: Awaited<ReturnType<typeof fetchWorkingTreeEntries>>
+): DiffFileRow[] => {
+  // gitStatus rejecting degrades to branch-only rows — never throws the whole rail away.
+  const working = workingResult.outcome === 'ready' ? workingResult.entries : null
+  return (mergeFileDiffEntriesWithOrigin(result.entries, working) ?? []).map((entry) => ({
+    path: entry.path,
+    status: entry.status,
+    added: entry.added,
+    removed: entry.removed,
+    origin: entry.origin,
+    ...(entry.oldPath === undefined ? {} : { oldPath: entry.oldPath })
+  }))
+}
+
 export function createDiffLiveLoader(deps: DiffLiveLoaderDeps): DiffLiveLoader {
   let gateway = deps.gateway
   let stopped = true
@@ -88,22 +104,6 @@ export function createDiffLiveLoader(deps: DiffLiveLoaderDeps): DiffLiveLoader {
       case 'no-base-ref':
         return // unreachable — start() already resolved a baseRef before calling loadRail
     }
-  }
-
-  const toRows = (
-    result: Extract<Awaited<ReturnType<typeof fetchBranchCompareEntries>>, { outcome: 'ready' }>,
-    workingResult: Awaited<ReturnType<typeof fetchWorkingTreeEntries>>
-  ): DiffFileRow[] => {
-    // gitStatus rejecting degrades to branch-only rows — never throws the whole rail away.
-    const working = workingResult.outcome === 'ready' ? workingResult.entries : null
-    return (mergeFileDiffEntriesWithOrigin(result.entries, working) ?? []).map((entry) => ({
-      path: entry.path,
-      status: entry.status,
-      added: entry.added,
-      removed: entry.removed,
-      origin: entry.origin,
-      ...(entry.oldPath === undefined ? {} : { oldPath: entry.oldPath })
-    }))
   }
 
   // Why: a poll must never flash 'loading' or an error over a rail the user is reading.

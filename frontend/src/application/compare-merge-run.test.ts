@@ -37,12 +37,12 @@ const setup = (gateway = createFakeGateway()) => {
   return { gateway, dispatch }
 }
 
-describe('runCompareMerge — no fan-out in this tab (reload / new tab)', () => {
-  const graphWithParent = (parentId: string | null): WorktreeGraph =>
-    ({
-      nodes: new Map([['w-child-2', { id: 'w-child-2', parentId }]])
-    }) as unknown as WorktreeGraph
+const graphWithParent = (parentId: string | null): WorktreeGraph =>
+  ({
+    nodes: new Map([['w-child-2', { id: 'w-child-2', parentId }]])
+  }) as unknown as WorktreeGraph
 
+describe('runCompareMerge — no fan-out in this tab (reload / new tab)', () => {
   it("falls back to the winner's parent in the graph", async () => {
     const { gateway, dispatch } = setup()
     await runCompareMerge(openWithWinner('w-child-2'), emptyFanOutSlice(), {
