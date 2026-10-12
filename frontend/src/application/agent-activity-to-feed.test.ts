@@ -1,15 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { agentActivityToFeedRow } from './agent-activity-to-feed'
+import { formatClockTime } from './clock-time'
 import { setActiveLanguage } from './i18n/translate'
 import type { AgentActivityEvent } from './ports/runtime-gateway'
 
-const pad = (n: number): string => n.toString().padStart(2, '0')
-
-/** Builds the expected HH:MM:SS from the SAME local Date the mapper uses — TZ-independent. */
-function expectedTime(at: number): string {
-  const date = new Date(at)
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-}
+/** Same formatter the mapper uses, so the assertion is TZ- and ICU-independent. */
+const expectedTime = formatClockTime
 
 const AT = 1_700_000_000_123
 
@@ -58,10 +54,10 @@ describe('agentActivityToFeedRow', () => {
     expect('highlighted' in row).toBe(false)
   })
 
-  it('zero-pads HH:MM:SS from the epoch', () => {
-    const midnightish = new Date(2026, 0, 1, 1, 2, 3).getTime()
-    const row = agentActivityToFeedRow(baseEvent({ at: midnightish }))
-    expect(row.time).toBe('01:02:03')
+  it('formats the time in the active UI language', () => {
+    setActiveLanguage('es')
+    const at = new Date(2026, 0, 1, 13, 2, 3).getTime()
+    expect(agentActivityToFeedRow(baseEvent({ at })).time).toBe('13:02:03')
   })
 })
 
