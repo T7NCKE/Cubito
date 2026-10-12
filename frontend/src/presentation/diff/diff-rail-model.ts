@@ -8,6 +8,10 @@ export type DiffRailStage = { state: StageState; glyph: string; label: string }
 
 export type DiffRailRow = {
   path: string
+  /** Directory part with trailing slash ('' for root files) — the part allowed to truncate. */
+  dirText: string
+  /** File name — never truncated. */
+  baseText: string
   status: string
   addedText: string
   removedText: string
@@ -42,6 +46,11 @@ const originTextFor = (file: DiffFileRow): string | undefined =>
       : t('diff.originUncommitted')
     : undefined
 
+const splitPath = (path: string): { dirText: string; baseText: string } => {
+  const cut = path.lastIndexOf('/') + 1
+  return { dirText: path.slice(0, cut), baseText: path.slice(cut) }
+}
+
 /** Pure projection of the diff rail's file list, selection-aware. No DOM. */
 export function diffRailViewModel(
   files: readonly DiffFileRow[],
@@ -54,6 +63,7 @@ export function diffRailViewModel(
     const originText = originTextFor(file)
     return {
       path: file.path,
+      ...splitPath(file.path),
       status: file.status,
       addedText: `+${file.added}`,
       removedText: `${MINUS_GLYPH}${file.removed}`,

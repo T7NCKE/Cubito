@@ -10,6 +10,17 @@ const file = (overrides: Partial<DiffFileRow> & Pick<DiffFileRow, 'path'>): Diff
   ...overrides
 })
 
+describe('diffRailViewModel — path split', () => {
+  it('splits the directory from the file name so the name can stay visible', () => {
+    const [nested, bare] = diffRailViewModel(
+      [file({ path: 'src/routes/auth/login.ts' }), file({ path: 'README.md' })],
+      null
+    )
+    expect(nested).toMatchObject({ dirText: 'src/routes/auth/', baseText: 'login.ts' })
+    expect(bare).toMatchObject({ dirText: '', baseText: 'README.md' })
+  })
+})
+
 describe('diffRailViewModel', () => {
   it('returns [] for an empty file list', () => {
     expect(diffRailViewModel([], null)).toEqual([])
@@ -23,6 +34,8 @@ describe('diffRailViewModel', () => {
     expect(rows).toEqual([
       {
         path: 'a.ts',
+        dirText: '',
+        baseText: 'a.ts',
         status: 'modified',
         addedText: '+3',
         removedText: '−1',

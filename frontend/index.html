@@ -889,11 +889,24 @@
       .diff-rail__row--wt {
         border-left: 2px solid var(--cubito-amber-dim);
       }
+      /* Directory truncates (from the end), the file name always stays whole. */
       .diff-rail__path {
         flex: 1;
+        min-width: 0;
+        display: flex;
+        white-space: nowrap;
+      }
+      .diff-rail__dir {
+        min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
+      }
+      .diff-rail__base {
+        flex-shrink: 0;
+      }
+      .diff-rail__added,
+      .diff-rail__removed {
+        flex-shrink: 0;
       }
       .diff-rail__old-path {
         color: var(--cubito-text-faint);
@@ -1039,9 +1052,7 @@
       .compare-rail__stat {
         grid-area: stat;
         min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
         color: var(--cubito-text-faint);
       }
       .compare-rail__winner-toggle {

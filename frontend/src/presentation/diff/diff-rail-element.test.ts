@@ -61,6 +61,8 @@ const createFakeDocument = (): Document =>
 const rootOf = (handle: ReturnType<typeof createDiffRail>) => handle.root as unknown as FakeElement
 
 const row = (overrides: Partial<DiffRailRow> & Pick<DiffRailRow, 'path'>): DiffRailRow => ({
+  dirText: overrides.path.slice(0, overrides.path.lastIndexOf('/') + 1),
+  baseText: overrides.path.slice(overrides.path.lastIndexOf('/') + 1),
   status: 'modified',
   addedText: '+0',
   removedText: '−0',
@@ -95,7 +97,9 @@ describe('createDiffRail', () => {
     const rail = createDiffRail(createFakeDocument())
     rail.apply([row({ path: 'src/auth.ts', addedText: '+12', removedText: '−4' })])
     const rowEl = rootOf(rail).children[0]!
-    expect(rowEl.children[0]!.textContent).toBe('src/auth.ts')
+    const pathEl = rowEl.children[0]!
+    expect(pathEl.title).toBe('src/auth.ts')
+    expect(pathEl.children.map((c) => c.textContent)).toEqual(['src/', 'auth.ts'])
     expect(rowEl.children[1]!.textContent).toBe('+12')
     expect(rowEl.children[2]!.textContent).toBe('−4')
   })

@@ -20,6 +20,7 @@ const buildRow = (
   const stat = doc.createElement('span')
   stat.className = 'compare-rail__stat'
   stat.textContent = row.statText
+  stat.title = row.statText
 
   const winnerToggle = doc.createElement('button')
   winnerToggle.type = 'button'

@@ -14,7 +14,15 @@ const buildRow = (
 
   const path = doc.createElement('span')
   path.className = 'diff-rail__path'
-  path.textContent = row.path
+  path.title = row.path
+  const dir = doc.createElement('span')
+  dir.className = 'diff-rail__dir'
+  dir.textContent = row.dirText
+  const base = doc.createElement('span')
+  base.className = 'diff-rail__base'
+  base.textContent = row.baseText
+  path.appendChild(dir)
+  path.appendChild(base)
 
   const added = doc.createElement('span')
   added.className = 'diff-rail__added'
