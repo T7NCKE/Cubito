@@ -77,7 +77,7 @@ describe('diff surfaces in English', () => {
       null,
       new Map([['a.ts', 'unstaged' as const]])
     )
-    expect(row!.originText).toBe('newborn')
+    expect(row!.originText).toBe('new file')
     expect(row!.stage?.label).toBe('stage')
   })
 

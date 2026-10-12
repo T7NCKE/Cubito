@@ -118,6 +118,12 @@ describe('fanOutViewModel — running', () => {
     expect(model.callout).toBe('fan-out · 5 × claude')
   })
 
+  it('names the agent in the UI language, not by its raw id', () => {
+    const model = fanOutViewModel(runningSlice({ fields: { count: 3, agent: 'none', prompt: '' } }))
+    if (model?.view !== 'running') throw new Error('expected running')
+    expect(model.callout).toBe('fan-out · 3 × ninguno')
+  })
+
   it('matches the mockup fixture counters: 2 trabajando · 1 esperando · 1 naciendo · 1 listo · 0 compuertas · 0 preguntas', () => {
     const model = fanOutViewModel(runningSlice())
     if (model?.view !== 'running') throw new Error('expected running')

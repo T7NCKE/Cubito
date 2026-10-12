@@ -16,6 +16,7 @@ import type { FanOutBatchFailure } from '../../application/fan-out-batch-failure
 import { pendingGatesViewModel, pendingQuestionsViewModel } from './fan-out-decision-view-model'
 import type { FanOutGateViewModel, FanOutQuestionViewModel } from './fan-out-decision-view-model'
 import { t, tn } from '../../application/i18n/translate'
+import { agentOptionLabel } from './spawn-agent-options'
 
 export type FanOutStepperViewModel = {
   readonly value: number
@@ -102,7 +103,10 @@ export function fanOutViewModel(
   const visibility = slice.decisionVisibility ?? emptyDecisionVisibility()
   return {
     view: 'running',
-    callout: t('fanout.callout', { count: slice.fields.count, agent: slice.fields.agent }),
+    callout: t('fanout.callout', {
+      count: slice.fields.count,
+      agent: agentOptionLabel(slice.fields.agent)
+    }),
     counters: countersLine(slice),
     gates: pendingGatesViewModel(visibility),
     questions: pendingQuestionsViewModel(visibility),

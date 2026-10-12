@@ -10,7 +10,7 @@ export const enDiff = {
   'diff.hudCounts': '{files} · +{added} −{removed} vs base',
   'diff.files.one': '{count} file',
   'diff.files.other': '{count} files',
-  'diff.originBorn': 'newborn',
+  'diff.originBorn': 'new file',
   'diff.originUncommitted': 'uncommitted',
   'diff.unstage': 'unstage',
   'diff.stageRest': 'stage the rest',

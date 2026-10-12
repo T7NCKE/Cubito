@@ -35,5 +35,5 @@ export const esCompare: Record<keyof typeof enCompare, string> = {
   'compare.railStats': '{files} · +{added} −{removed}',
   'compare.railFiles.one': '{count} archivo',
   'compare.railFiles.other': '{count} archivos',
-  'compare.railEmpty': 'sin litter'
+  'compare.railEmpty': 'sin hijos'
 }

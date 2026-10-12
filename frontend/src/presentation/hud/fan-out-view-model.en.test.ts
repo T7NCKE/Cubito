@@ -33,7 +33,7 @@ describe('fan-out copy (en)', () => {
       fanOutSubmitBlocker(
         formSlice({ repoSelector: 'r', fields: { count: 3, agent: 'claude', prompt: ' ' } })
       )
-    ).toBe('write what the litter should do')
+    ).toBe('write what the fan-out should do')
     expect(
       fanOutSubmitBlocker(
         formSlice({
@@ -41,7 +41,7 @@ describe('fan-out copy (en)', () => {
           fields: { count: MAX_FANOUT + 1, agent: 'none', prompt: '' }
         })
       )
-    ).toBe(`a litter has between ${MIN_FANOUT} and ${MAX_FANOUT} cubes`)
+    ).toBe(`a fan-out has between ${MIN_FANOUT} and ${MAX_FANOUT} cubes`)
   })
 
   it('falls back to an English message for an empty child failure', () => {

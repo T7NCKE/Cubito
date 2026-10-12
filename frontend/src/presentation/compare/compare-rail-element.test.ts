@@ -168,7 +168,7 @@ describe('createCompareRail', () => {
     rail.apply([])
     const root = rootOf(rail)
     expect(root.children).toHaveLength(1)
-    expect(root.children[0]!.textContent).toBe('sin litter')
+    expect(root.children[0]!.textContent).toBe('sin hijos')
   })
 
   it('re-applying replaces previous rows rather than accumulating them', () => {
