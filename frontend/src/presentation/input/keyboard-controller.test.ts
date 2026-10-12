@@ -811,6 +811,16 @@ describe('createKeyboardController', () => {
       expect(press('o', false, null)).toHaveBeenCalledOnce()
     })
 
+    it.each([
+      ['t', false],
+      ['T', true]
+    ])(
+      'preventDefaults the handled %s that focuses the terminal (no leak into the PTY)',
+      (key, shift) => {
+        expect(press(key, shift, null)).toHaveBeenCalledOnce()
+      }
+    )
+
     it('never preventDefaults an s typed into a text field (not handled)', () => {
       expect(
         press('s', false, { tagName: 'INPUT', isContentEditable: false })
