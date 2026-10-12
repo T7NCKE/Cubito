@@ -66,7 +66,7 @@ export function spawnViewModel(
     baseBranch: { value: slice.fields.baseBranch, enabled: !submitting },
     prompt: { value: slice.fields.prompt, enabled: agentActive && !submitting },
     submitLabel: submitting ? t('spawn.submitting') : t('spawn.submit'),
-    submitEnabled: slice.fields.name.trim() !== '' && !submitting,
+    submitEnabled: !submitting,
     errorMessage:
       slice.status === 'error' ? (slice.errorMessage ?? plainFailure(t('failure.unknown'))) : null,
     setupHint

@@ -90,6 +90,11 @@ function startSubmit(slice: SpawnMenuSlice): SpawnMenuSlice {
 }
 
 /** Maps form fields + lineage + resolved repo selector to `worktree.create` params (SPAWN-003 omit table). */
+/** wt-<mutationId prefix> (language-neutral: persisted git refs must not depend on UI language) — used when the name field is left empty. */
+export function generatedWorktreeName(mutationId: string): string {
+  return `wt-${mutationId.replace(/-/g, '').slice(0, 10)}`
+}
+
 export function toCreateWorktreeInput(
   fields: SpawnFormFields,
   parentId: WorktreeId | null,

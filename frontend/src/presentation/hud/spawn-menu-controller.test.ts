@@ -359,6 +359,18 @@ describe('createSpawnMenuController', () => {
     expect(refetch).not.toHaveBeenCalled()
   })
 
+  it('an empty name submits with a generated language-neutral wt-<id prefix> name', async () => {
+    const { controller, gateway, forms } = setup()
+    const slice: SpawnMenuSlice = { ...rootlessFormSlice(), repoSelector: 'id:repo-1' }
+    controller.sync(slice, emptyWorktreeGraph())
+
+    forms[0]!.emitSubmit()
+    await flush()
+
+    expect(gateway.createWorktree).toHaveBeenCalledOnce()
+    expect(gateway.createWorktree.mock.calls[0]![0].name).toBe('wt-fixedmutat')
+  })
+
   it('submit is a no-op while the repo selector has not resolved yet', async () => {
     const { controller, gateway, forms, dispatch } = setup()
     let slice: SpawnMenuSlice = rootlessFormSlice() // repoSelector still null

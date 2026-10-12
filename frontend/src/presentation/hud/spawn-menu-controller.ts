@@ -3,7 +3,7 @@ import { describeFailure, plainFailure } from '../../application/i18n/user-facin
 import type { Vec3 } from '../camera/camera-framing'
 import type { WorktreeGraph, WorktreeId } from '../../domain/worktree-graph/types'
 import type { SpawnMenuAction, SpawnMenuSlice } from '../../application/spawn-menu-model'
-import { toCreateWorktreeInput } from '../../application/spawn-menu-model'
+import { generatedWorktreeName, toCreateWorktreeInput } from '../../application/spawn-menu-model'
 import { repoSelectorForNode } from '../../application/anchor-repo-selector'
 import type { RuntimeGateway } from '../../application/ports/runtime-gateway'
 import type { SpawnMenuHandle } from './spawn-menu-element'
@@ -132,15 +132,19 @@ export function createSpawnMenuController(deps: SpawnMenuControllerDeps): SpawnM
   const handleSubmit = async (): Promise<void> => {
     const slice = currentSlice
     if (slice.view !== 'form' || slice.status === 'submitting') return
-    if (slice.fields.name.trim() === '') return
     deps.dispatch({ type: 'submit' })
     if (slice.repoSelector === null) {
       deps.dispatch({ type: 'submit-error', message: plainFailure(t('spawn.repoUnresolved')) })
       return
     }
+    const clientMutationId = generateMutationId()
+    const fields =
+      slice.fields.name.trim() === ''
+        ? { ...slice.fields, name: generatedWorktreeName(clientMutationId) }
+        : slice.fields
     const input = {
-      ...toCreateWorktreeInput(slice.fields, slice.parentId, slice.repoSelector),
-      clientMutationId: generateMutationId()
+      ...toCreateWorktreeInput(fields, slice.parentId, slice.repoSelector),
+      clientMutationId
     }
     try {
       const { worktreeId } = await gateway.createWorktree(input)

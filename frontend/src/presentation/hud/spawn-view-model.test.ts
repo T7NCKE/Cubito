@@ -99,24 +99,15 @@ describe('spawnViewModel — form', () => {
     expect(claude.prompt.enabled).toBe(true)
   })
 
-  it('submit is disabled with an empty name, enabled once a name is present', () => {
+  it('submit stays enabled with an empty or blank name (a name is generated)', () => {
     const empty = spawnViewModel(formSlice(), emptyWorktreeGraph())
-    const named = spawnViewModel(
-      formSlice({ fields: { name: 'x', baseBranch: '', agent: 'none', prompt: '' } }),
-      emptyWorktreeGraph()
-    )
-    if (empty?.view !== 'form' || named?.view !== 'form') throw new Error('expected form')
-    expect(empty.submitEnabled).toBe(false)
-    expect(named.submitEnabled).toBe(true)
-  })
-
-  it('a name that is only whitespace does not enable submit', () => {
-    const model = spawnViewModel(
+    const blank = spawnViewModel(
       formSlice({ fields: { name: '   ', baseBranch: '', agent: 'none', prompt: '' } }),
       emptyWorktreeGraph()
     )
-    if (model?.view !== 'form') throw new Error('expected form')
-    expect(model.submitEnabled).toBe(false)
+    if (empty?.view !== 'form' || blank?.view !== 'form') throw new Error('expected form')
+    expect(empty.submitEnabled).toBe(true)
+    expect(blank.submitEnabled).toBe(true)
   })
 
   it('submitting status disables every field and submit, and shows a submitting label', () => {
