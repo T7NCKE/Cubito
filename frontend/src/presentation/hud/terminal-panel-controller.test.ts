@@ -56,6 +56,7 @@ const createFakePanel = (): FakePanel => {
       resizeCb = cb
       return () => (resizeCb = null)
     },
+    setSize: vi.fn(),
     focus: vi.fn(),
     blur: vi.fn(),
     setPlaced: vi.fn(),
@@ -265,6 +266,26 @@ describe('createTerminalPanelController', () => {
     controller.tick()
     const center = placedCenter(panels[0]!, { x: 500, y: 40 })
     expect(center.y - 180).toBeGreaterThanOrEqual(cube.bottom)
+  })
+
+  it('keeps the CSS size in a roomy viewport', async () => {
+    const { controller, panels } = setup()
+    controller.sync(openedState())
+    await flush()
+    controller.tick()
+    expect(panels[0]!.setSize).toHaveBeenLastCalledWith(null)
+  })
+
+  it('shrinks the panel to fit beside a HUD form in a squeezed viewport', async () => {
+    const { controller, panels, deps } = setup()
+    deps.viewport = () => ({ width: 900, height: 700 })
+    deps.cubeRect = vi.fn(() => ({ left: 430, top: 330, right: 470, bottom: 370 }))
+    deps.obstacles = () => [{ left: 468, top: 12, right: 888, bottom: 430 }]
+    controller.sync(openedState())
+    await flush()
+    controller.tick()
+    const size = (panels[0]!.setSize as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0]
+    expect(size.width).toBeLessThan(520)
   })
 
   it('stays hidden and unpositioned until the panel has been measured', async () => {

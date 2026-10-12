@@ -17,7 +17,7 @@ import { terminalPanelModel } from './terminal-panel-model'
 import type { NdcPoint } from './terminal-connector-projector'
 import { projectToScreen } from './terminal-connector-projector'
 import type { LabelRect } from './label-collision-model'
-import { placeTerminalPanel } from './terminal-panel-placement'
+import { fitTerminalPanel, TERMINAL_PANEL_FULL } from './terminal-panel-placement'
 
 /** World-space lift above the node center the panel floats at (mirrors node-label's fixed offset). */
 const PANEL_WORLD_LIFT = 3
@@ -322,21 +322,22 @@ export function createTerminalPanelController(
       const { width, height } = deps.viewport()
       const nodeScreen = projectToScreen(deps.projectToNdc(center), width, height)
       const panelScreen = projectToScreen(deps.projectToNdc(panelWorld), width, height)
-      const size = { width: element.offsetWidth, height: element.offsetHeight }
       const cube = deps.cubeRect(mounted.nodeId) ?? {
         left: nodeScreen.x - CUBE_FALLBACK_HALF_PX,
         right: nodeScreen.x + CUBE_FALLBACK_HALF_PX,
         top: nodeScreen.y - CUBE_FALLBACK_HALF_PX,
         bottom: nodeScreen.y + CUBE_FALLBACK_HALF_PX
       }
-      const placed = placeTerminalPanel(
+      const { size, center: placed } = fitTerminalPanel(
         cube,
-        size,
         { width, height },
         PANEL_VIEWPORT_MARGIN,
         PANEL_CUBE_GAP,
         deps.obstacles?.() ?? []
       )
+      const isFull =
+        size.width === TERMINAL_PANEL_FULL.width && size.height === TERMINAL_PANEL_FULL.height
+      mounted.panel.setSize(isFull ? null : size)
       // Why: CSS2DObject.center is the element pivot, so moving it shifts the panel on screen
       // without touching its world position.
       object.center.set(

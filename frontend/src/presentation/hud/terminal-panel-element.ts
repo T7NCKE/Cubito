@@ -56,6 +56,8 @@ export type TerminalPanelHandle = {
   onResize(callback: (cols: number, rows: number) => void): () => void
   focus(): void
   blur(): void
+  /** Overrides the CSS size (null restores it) and refits the shell when the size changed. */
+  setSize(size: { width: number; height: number } | null): void
   /** Hidden panels keep their layout (still measurable) but paint nothing. */
   setPlaced(placed: boolean): void
   dispose(): void
@@ -99,6 +101,7 @@ export function createTerminalPanel(onExit: () => void): TerminalPanelHandle {
   })
 
   const object = new CSS2DObject(root)
+  let sizeKey = ''
 
   return {
     object,
@@ -130,6 +133,14 @@ export function createTerminalPanel(onExit: () => void): TerminalPanelHandle {
     },
     focus() {
       connectedFocus.request()
+    },
+    setSize(size) {
+      const key = size === null ? '' : `${size.width}x${size.height}`
+      if (key === sizeKey) return
+      sizeKey = key
+      root.style.width = size === null ? '' : `${size.width}px`
+      root.style.height = size === null ? '' : `${size.height}px`
+      fitAddon.fit()
     },
     setPlaced(placed: boolean) {
       root.style.visibility = placed ? '' : 'hidden'

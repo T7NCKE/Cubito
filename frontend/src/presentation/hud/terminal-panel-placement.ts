@@ -62,3 +62,62 @@ export function placeTerminalPanel(
   const candidates = [...clampedSides, ...docks.map(clamp)]
   return candidates.reduce((best, c) => (cost(c) < cost(best) ? c : best))
 }
+
+/** Natural panel size; keep in sync with `.cubito-terminal-panel` in index.html. */
+export const TERMINAL_PANEL_FULL: PanelBox = { width: 520, height: 360 }
+/** Smallest size worth typing in (about 48x10 cells at the default font). */
+export const TERMINAL_PANEL_MIN: PanelBox = { width: 340, height: 220 }
+const SHRINK_STEPS = 6
+
+type Overlap = { cube: number; obstacles: number }
+
+const overlapOf = (
+  center: ScreenXY,
+  size: PanelBox,
+  cube: LabelRect,
+  obstacles: readonly LabelRect[]
+): Overlap => {
+  const rect = rectAround(center, size)
+  return {
+    cube: overlapArea(rect, cube),
+    obstacles: obstacles.reduce((sum, o) => sum + overlapArea(rect, o), 0)
+  }
+}
+
+/**
+ * Picks the largest panel size (full down to a usable minimum) that sits clear of the cube and
+ * every HUD obstacle; failing that, the largest that at least clears the HUD, else the minimum.
+ * At roomy viewports this is simply the full size.
+ */
+export function fitTerminalPanel(
+  cube: LabelRect,
+  viewport: PanelBox,
+  margin: number,
+  gap: number,
+  obstacles: readonly LabelRect[] = []
+): { size: PanelBox; center: ScreenXY } {
+  const room = { width: viewport.width - 2 * margin, height: viewport.height - 2 * margin }
+  const largest = {
+    width: Math.min(TERMINAL_PANEL_FULL.width, room.width),
+    height: Math.min(TERMINAL_PANEL_FULL.height, room.height)
+  }
+  const smallest = {
+    width: Math.min(largest.width, TERMINAL_PANEL_MIN.width),
+    height: Math.min(largest.height, TERMINAL_PANEL_MIN.height)
+  }
+  let hudClear: { size: PanelBox; center: ScreenXY } | null = null
+  let last = { size: largest, center: { x: 0, y: 0 } }
+  for (let step = 0; step <= SHRINK_STEPS; step++) {
+    const t = step / SHRINK_STEPS
+    const size = {
+      width: Math.round(largest.width + (smallest.width - largest.width) * t),
+      height: Math.round(largest.height + (smallest.height - largest.height) * t)
+    }
+    const center = placeTerminalPanel(cube, size, viewport, margin, gap, obstacles)
+    last = { size, center }
+    const overlap = overlapOf(center, size, cube, obstacles)
+    if (overlap.obstacles === 0 && overlap.cube === 0) return last
+    if (overlap.obstacles === 0) hudClear ??= last
+  }
+  return hudClear ?? last
+}

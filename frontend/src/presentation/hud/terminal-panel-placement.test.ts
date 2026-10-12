@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { placeTerminalPanel } from './terminal-panel-placement'
+import {
+  fitTerminalPanel,
+  placeTerminalPanel,
+  TERMINAL_PANEL_FULL,
+  TERMINAL_PANEL_MIN
+} from './terminal-panel-placement'
 
 const VIEWPORT = { width: 1200, height: 800 }
 const PANEL = { width: 520, height: 360 }
@@ -87,5 +92,42 @@ describe('placeTerminalPanel', () => {
         placeTerminalPanel(cube, PANEL, VIEWPORT, MARGIN, GAP)
       )
     })
+  })
+})
+
+describe('fitTerminalPanel', () => {
+  it('keeps the full size when the viewport is roomy', () => {
+    const { size } = fitTerminalPanel(cube, VIEWPORT, MARGIN, GAP)
+    expect(size).toEqual(TERMINAL_PANEL_FULL)
+  })
+
+  it('shrinks to clear the cube and a HUD form in a squeezed viewport', () => {
+    const viewport = { width: 900, height: 700 }
+    const middle = { left: 430, top: 330, right: 470, bottom: 370 }
+    const form = { left: 468, top: 12, right: 888, bottom: 430 }
+    const { size, center } = fitTerminalPanel(middle, viewport, MARGIN, GAP, [form])
+    const rect = {
+      left: center.x - size.width / 2,
+      right: center.x + size.width / 2,
+      top: center.y - size.height / 2,
+      bottom: center.y + size.height / 2
+    }
+    expect(size.width).toBeLessThan(TERMINAL_PANEL_FULL.width)
+    expect(size.width).toBeGreaterThanOrEqual(TERMINAL_PANEL_MIN.width)
+    expect(overlaps(rect, form)).toBe(false)
+    expect(overlaps(rect, middle)).toBe(false)
+  })
+
+  it('never goes below the minimum, even when nothing fits', () => {
+    const viewport = { width: 900, height: 700 }
+    const everything = { left: 0, top: 0, right: 900, bottom: 700 }
+    const { size } = fitTerminalPanel(cube, viewport, MARGIN, GAP, [everything])
+    expect(size).toEqual(TERMINAL_PANEL_MIN)
+  })
+
+  it('caps the panel to a viewport smaller than its natural size', () => {
+    const { size } = fitTerminalPanel(cube, { width: 400, height: 300 }, MARGIN, GAP)
+    expect(size.width).toBeLessThanOrEqual(376)
+    expect(size.height).toBeLessThanOrEqual(276)
   })
 })
