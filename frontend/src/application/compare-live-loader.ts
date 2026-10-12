@@ -2,6 +2,7 @@ import { resolveBaseRef } from '../domain/worktree-graph/resolve-base-ref'
 import type { WorktreeId } from '../domain/worktree-graph/types'
 import type { RuntimeGateway } from './ports/runtime-gateway'
 import type { SceneStore } from './scene-store'
+import { fanOutParentId } from './fan-out-model'
 import { railErrorMessageFor } from './diff-live-loader'
 import { t } from './i18n/translate'
 import { describeFailure, plainFailure } from './i18n/user-facing-error'
@@ -49,13 +50,46 @@ export function createCompareLiveLoader(deps: CompareLiveLoaderDeps): CompareLiv
     return slice.view === 'open' && childId in slice.childLoads
   }
 
+  // Why: the 2s graph poll lags child-created, so a fresh child can be absent from the graph.
+  function resolveChildBaseRef(childId: WorktreeId): string | null {
+    const { graph, fanOut } = deps.store.get()
+    const resolved = resolveBaseRef(graph, childId)
+    if (resolved !== null || graph.nodes.has(childId)) return resolved
+    const parentId = fanOutParentId(fanOut)
+    const parentBranch = parentId === null ? undefined : graph.nodes.get(parentId)?.branch
+    return parentBranch !== undefined && parentBranch.trim() !== '' ? parentBranch : null
+  }
+
+  const pending = new Set<WorktreeId>()
+  let unsubscribe: (() => void) | null = null
+
+  function retryPending(): void {
+    for (const childId of [...pending]) {
+      if (resolveChildBaseRef(childId) === null) continue
+      pending.delete(childId)
+      void loadChildRail(childId)
+    }
+    if (pending.size === 0) releaseSubscription()
+  }
+
+  function releaseSubscription(): void {
+    unsubscribe?.()
+    unsubscribe = null
+  }
+
   async function loadChildRail(childId: WorktreeId): Promise<void> {
-    const baseRef = resolveBaseRef(deps.store.get().graph, childId)
+    const baseRef = resolveChildBaseRef(childId)
     if (baseRef === null) {
+      if (!deps.store.get().graph.nodes.has(childId)) {
+        // Not an error: stay 'loading' until the node reaches the graph.
+        pending.add(childId)
+        unsubscribe ??= deps.store.subscribe(retryPending)
+        return
+      }
       dispatch({
         type: 'child-rail-error',
         childId,
-        message: plainFailure(t('diff.noBaseRef', { id: childId }))
+        message: { lead: t('diff.noBaseRef'), detail: childId }
       })
       return
     }
@@ -119,6 +153,8 @@ export function createCompareLiveLoader(deps: CompareLiveLoaderDeps): CompareLiv
   return {
     start(members) {
       stopped = false
+      pending.clear()
+      releaseSubscription()
       for (const childId of members) {
         void loadChildRail(childId)
       }
@@ -133,6 +169,8 @@ export function createCompareLiveLoader(deps: CompareLiveLoaderDeps): CompareLiv
     },
     stop() {
       stopped = true
+      pending.clear()
+      releaseSubscription()
     },
     rebindGateway(newGateway) {
       gateway = newGateway

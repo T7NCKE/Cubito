@@ -169,7 +169,77 @@ describe('createCompareLiveLoader', () => {
     expect(gateway.compareCalls).toEqual([
       { worktree: 'repo::child-a', baseRef: 'refs/heads/main' }
     ])
+    const lonelyLoad = store.get().compareView
+    expect(
+      lonelyLoad.view === 'open' && lonelyLoad.childLoads['repo::lonely']?.errorMessage
+    ).toEqual({ lead: 'no se pudo determinar contra qué rama comparar', detail: 'repo::lonely' })
     loader.stop()
+  })
+
+  describe('fresh fan-out child not yet in the graph', () => {
+    const openFor = (parentId: string): void => {
+      store.dispatchFanOut({ type: 'open-for-node', nodeId: parentId })
+      store.dispatchFanOut({ type: 'set-repo-selector', repoSelector: 'id:repo' })
+      store.dispatchFanOut({ type: 'submit', mutationIds: ['m1'] })
+      store.dispatchCompareView({ type: 'open', members: ['repo::fresh'] })
+    }
+    const mainNode = node({ id: 'repo::main', isMain: true, branch: 'refs/heads/main' })
+    const freshNode = node({
+      id: 'repo::fresh',
+      isMain: false,
+      branch: 'refs/heads/fresh',
+      parentId: 'repo::main'
+    })
+    const loadOf = () => {
+      const slice = store.get().compareView
+      return slice.view === 'open' ? slice.childLoads['repo::fresh'] : undefined
+    }
+
+    it('falls back to the fan-out parent branch instead of erroring', async () => {
+      store.update({ graph: graphOf([mainNode]) })
+      openFor('repo::main')
+      const gateway = createFakeGateway()
+      const loader = createCompareLiveLoader({ store, gateway })
+
+      loader.start(['repo::fresh'])
+      await vi.waitFor(() => expect(loadOf()?.status).toBe('ready'))
+      expect(gateway.compareCalls).toEqual([
+        { worktree: 'repo::fresh', baseRef: 'refs/heads/main' }
+      ])
+      loader.stop()
+    })
+
+    it('stays pending (no error) while nothing resolves, then loads once the node joins the graph', async () => {
+      store.update({ graph: graphOf([]) })
+      store.dispatchCompareView({ type: 'open', members: ['repo::fresh'] })
+      const gateway = createFakeGateway()
+      const loader = createCompareLiveLoader({ store, gateway })
+
+      loader.start(['repo::fresh'])
+      await Promise.resolve()
+      expect(loadOf()?.status).toBe('loading')
+      expect(gateway.compareCalls).toEqual([])
+
+      store.update({ graph: graphOf([mainNode, freshNode]) })
+      await vi.waitFor(() => expect(loadOf()?.status).toBe('ready'))
+      expect(gateway.compareCalls).toEqual([
+        { worktree: 'repo::fresh', baseRef: 'refs/heads/main' }
+      ])
+      loader.stop()
+    })
+
+    it('stop() cancels a pending retry', async () => {
+      store.update({ graph: graphOf([]) })
+      store.dispatchCompareView({ type: 'open', members: ['repo::fresh'] })
+      const gateway = createFakeGateway()
+      const loader = createCompareLiveLoader({ store, gateway })
+
+      loader.start(['repo::fresh'])
+      loader.stop()
+      store.update({ graph: graphOf([mainNode, freshNode]) })
+      await Promise.resolve()
+      expect(gateway.compareCalls).toEqual([])
+    })
   })
 
   it('dispatches child-rail-error when gitBranchCompare rejects for one child, isolated from the other', async () => {

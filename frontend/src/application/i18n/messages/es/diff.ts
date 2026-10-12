@@ -20,5 +20,5 @@ export const esDiff: Record<keyof typeof enDiff, string> = {
   'diff.baseInvalid': 'base inválida',
   'diff.unbornHead': 'rama sin commits',
   'diff.noMergeBase': 'sin ancestro común con la base',
-  'diff.noBaseRef': 'sin ref base para {id}'
+  'diff.noBaseRef': 'no se pudo determinar contra qué rama comparar'
 }

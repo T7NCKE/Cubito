@@ -148,7 +148,7 @@ export function createDiffLiveLoader(deps: DiffLiveLoaderDeps): DiffLiveLoader {
       stopped = false
       const baseRef = resolveBaseRef(deps.store.get().graph, nodeId)
       if (baseRef === null) {
-        dispatch({ type: 'open-error', message: plainFailure(t('diff.noBaseRef', { id: nodeId })) })
+        dispatch({ type: 'open-error', message: { lead: t('diff.noBaseRef'), detail: nodeId } })
         return
       }
       dispatch({ type: 'open', nodeId, baseRef })

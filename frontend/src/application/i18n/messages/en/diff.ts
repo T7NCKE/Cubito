@@ -18,5 +18,5 @@ export const enDiff = {
   'diff.baseInvalid': 'invalid base',
   'diff.unbornHead': 'branch has no commits',
   'diff.noMergeBase': 'no common ancestor with the base',
-  'diff.noBaseRef': 'no base ref for {id}'
+  'diff.noBaseRef': "couldn't work out which branch to compare against"
 } as const
