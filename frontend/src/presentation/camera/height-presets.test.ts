@@ -5,6 +5,7 @@ import {
   heightDurationMs,
   heightFov,
   poseForExtent,
+  poseForGeneral,
   poseForHeight
 } from './height-presets'
 import { CAMERA_HEIGHTS } from './camera-pose'
@@ -116,6 +117,31 @@ describe('OrbitControls bounds ratchet', () => {
       expect(distance).toBeLessThanOrEqual(MAX_DOLLY_DISTANCE)
       expect(polarDeg).toBeGreaterThanOrEqual(MIN_POLAR_DEG)
       expect(polarDeg).toBeLessThanOrEqual(MAX_POLAR_DEG)
+    }
+  })
+})
+
+describe('poseForGeneral', () => {
+  it('keeps the fixed overview preset when the galaxy already fits it', () => {
+    const framing = { target: { x: 10, y: 0.5, z: -4 }, radius: 12 }
+    expect(poseForGeneral(framing, 1.6)).toEqual(
+      poseForHeight('general', { x: 10, y: 0, z: -4 }, null)
+    )
+  })
+
+  it('pulls back along the preset direction until a wide galaxy fits both axes', () => {
+    const wide = { target: { x: 0, y: 0, z: 0 }, radius: 140 }
+    const aspect = 900 / 700
+    const pose = poseForGeneral(wide, aspect)
+    const fixed = poseForHeight('general', { x: 0, y: 0, z: 0 }, null)
+    expect(vecLength(sub(pose.position, pose.lookAt))).toBeGreaterThan(
+      vecLength(sub(fixed.position, fixed.lookAt))
+    )
+    expect(
+      dot(normalize(sub(pose.position, pose.lookAt)), normalize(sub(fixed.position, fixed.lookAt)))
+    ).toBeCloseTo(1, 6)
+    for (const sign of [-1, 1]) {
+      expect(framesPoint(pose, aspect, { x: sign * 140, y: 0, z: 0 })).toBe(true)
     }
   })
 })

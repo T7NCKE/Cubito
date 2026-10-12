@@ -84,7 +84,7 @@ export const CAMERA_HEIGHT_PRESETS = {
 export const CAMERA_NEAR = 0.1
 export const CAMERA_FAR = 400
 export const MIN_DOLLY_DISTANCE = 4
-export const MAX_DOLLY_DISTANCE = 120
+export const MAX_DOLLY_DISTANCE = 320
 export const PICK_DRAG_SLOP_PX = 4
 
 // ── decorations ─────────────────────────────────────────────────────────

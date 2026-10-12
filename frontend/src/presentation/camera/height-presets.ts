@@ -57,11 +57,12 @@ export const poseForExtent = (
   framing: CameraFraming,
   fov: number,
   aspect = 1,
-  direction: Vec3 = ISLA_VIEW_DIRECTION
+  direction: Vec3 = ISLA_VIEW_DIRECTION,
+  maxDistance = MAX_DOLLY_DISTANCE
 ): CameraPose => {
   const halfV = (fov / 2) * DEG_TO_RAD
   const half = aspect >= 1 ? halfV : Math.atan(Math.tan(halfV) * aspect)
-  const distance = clamp(framing.radius / Math.sin(half), MIN_DOLLY_DISTANCE, MAX_DOLLY_DISTANCE)
+  const distance = clamp(framing.radius / Math.sin(half), MIN_DOLLY_DISTANCE, maxDistance)
   return {
     position: {
       x: framing.target.x + distance * direction.x,
@@ -71,4 +72,31 @@ export const poseForExtent = (
     lookAt: framing.target,
     fov
   }
+}
+
+const GENERAL_VIEW_DIRECTION: Vec3 = viewDirectionOf(PRESETS.general)
+const GENERAL_DISTANCE = Math.hypot(
+  PRESETS.general.position.x - PRESETS.general.lookAt.x,
+  PRESETS.general.position.y - PRESETS.general.lookAt.y,
+  PRESETS.general.position.z - PRESETS.general.lookAt.z
+)
+
+/** Overview ('v'): the fixed preset while the galaxy fits it, else pulled back along the same
+ *  direction until every island is inside the frustum at the live aspect. */
+export const poseForGeneral = (framing: CameraFraming, aspect: number): CameraPose => {
+  const ground = toGround(framing.target)
+  const fixed = poseForHeight('general', ground, null)
+  const fitted = poseForExtent(
+    { target: ground, radius: framing.radius },
+    PRESETS.general.fov,
+    aspect,
+    GENERAL_VIEW_DIRECTION,
+    MAX_DOLLY_DISTANCE
+  )
+  const fittedDistance = Math.hypot(
+    fitted.position.x - ground.x,
+    fitted.position.y - ground.y,
+    fitted.position.z - ground.z
+  )
+  return fittedDistance > GENERAL_DISTANCE ? fitted : fixed
 }

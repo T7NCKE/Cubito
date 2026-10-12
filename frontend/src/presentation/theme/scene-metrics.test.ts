@@ -53,7 +53,7 @@ describe('scene-metrics', () => {
     expect(CAMERA_NEAR).toBe(0.1)
     expect(CAMERA_FAR).toBe(400)
     expect(MIN_DOLLY_DISTANCE).toBe(4)
-    expect(MAX_DOLLY_DISTANCE).toBe(120)
+    expect(MAX_DOLLY_DISTANCE).toBe(320)
     expect(PICK_DRAG_SLOP_PX).toBe(4)
   })
 

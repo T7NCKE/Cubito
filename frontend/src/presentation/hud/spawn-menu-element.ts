@@ -24,6 +24,8 @@ export function createSpawnMenu(doc: Document = document): SpawnMenuHandle {
   root.style.pointerEvents = 'none'
 
   const object = new CSS2DObject(root)
+  // Why: centred on the node it would sit on top of the selected cube; pin its left edge to it.
+  object.center.set(0, 0.5)
 
   return {
     object,

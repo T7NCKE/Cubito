@@ -9,6 +9,7 @@ import {
   heightDurationMs,
   heightFov,
   poseForExtent,
+  poseForGeneral,
   poseForHeight
 } from '../camera/height-presets'
 import { islandEntrySelection } from '../navigation/selection-model'
@@ -76,15 +77,6 @@ export function createCameraHeightController(
     return center ? { x: center.x, y: 0, z: center.z } : null
   }
 
-  /** general anchors on the galaxy centroid (design D6 fallback) — independent of the active
-   *  island, unlike every other height's `groundAnchor`. */
-  const generalAnchor = (): Vec3 | null => {
-    const centers = scenePositions.nodeCenters()
-    if (centers.length === 0) return null
-    const { target } = frameAll(centers)
-    return { x: target.x, y: 0, z: target.z }
-  }
-
   const computePose = (height: CameraHeight): CameraPose | null => {
     if (height === 'foco') {
       const selectedId = store.get().selection.selectedId
@@ -94,8 +86,8 @@ export function createCameraHeightController(
       return poseForHeight('foco', anchor, selection)
     }
     if (height === 'general') {
-      const anchor = generalAnchor()
-      return anchor === null ? null : poseForHeight('general', anchor, null)
+      const centers = scenePositions.nodeCenters()
+      return centers.length === 0 ? null : poseForGeneral(frameAll(centers), rig.currentAspect())
     }
     const anchor = groundAnchor(store.get().repos.activeRepoId)
     if (anchor === null) return null
