@@ -9,9 +9,15 @@ import {
   labelBoxPx,
   labelDropPx,
   labelRectAt,
+  projectedCubeRect,
   resolveLabelCollisions
 } from './label-collision-model'
-import type { LabelCandidate, LabelRect } from './label-collision-model'
+import type {
+  LabelCandidate,
+  LabelObstacle,
+  LabelRect,
+  ScreenAnchor
+} from './label-collision-model'
 import type { NodeLabelModel } from './node-label-model'
 
 const model = (overrides: Partial<NodeLabelModel> = {}): NodeLabelModel => ({
@@ -197,5 +203,70 @@ describe('resolveLabelCollisions', () => {
       new Set()
     )
     expect(result.has('other')).toBe(true)
+  })
+})
+
+describe('resolveLabelCollisions obstacles (other nodes cubes)', () => {
+  const obstacle = (id: string, left: number, right: number): LabelObstacle => ({
+    id,
+    rect: rect(left, right)
+  })
+
+  it('hides a label that overlaps another node cube, even when it is the only label', () => {
+    const result = resolveLabelCollisions([candidate('a', 1, 0, 100)], new Set(), [
+      obstacle('b', 50, 150)
+    ])
+    expect(result.has('a')).toBe(true)
+  })
+
+  it('ignores the label own cube', () => {
+    const result = resolveLabelCollisions([candidate('a', 1, 0, 100)], new Set(), [
+      obstacle('a', 0, 100)
+    ])
+    expect(result.size).toBe(0)
+  })
+
+  it('a cube never hides another label by itself being a cube (disjoint stays visible)', () => {
+    const result = resolveLabelCollisions([candidate('a', 1, 0, 100)], new Set(), [
+      obstacle('b', 200, 300)
+    ])
+    expect(result.size).toBe(0)
+  })
+
+  it('priority does not rescue a label from a cube', () => {
+    const result = resolveLabelCollisions(
+      [candidate('top', 9, 0, 100), candidate('low', 0, 300, 400)],
+      new Set(),
+      [obstacle('x', 20, 80)]
+    )
+    expect(result.has('top')).toBe(true)
+    expect(result.has('low')).toBe(false)
+  })
+
+  it('hysteresis: a visible label overlapping a cube by 3px stays, a hidden one 3px clear stays hidden', () => {
+    expect(
+      resolveLabelCollisions([candidate('a', 1, 0, 100)], new Set(), [obstacle('b', 97, 197)]).size
+    ).toBe(0)
+    expect(
+      resolveLabelCollisions([candidate('a', 1, 0, 100)], new Set(['a']), [obstacle('b', 103, 203)])
+        .size
+    ).toBe(1)
+  })
+})
+
+const at = (x: number, y: number, visible = true): ScreenAnchor => ({ x, y, visible })
+
+describe('projectedCubeRect', () => {
+  it('bounds the projected corners and grows by the margin', () => {
+    expect(projectedCubeRect([at(10, 20), at(30, 5), at(20, 40)], 2)).toEqual({
+      left: 8,
+      top: 3,
+      right: 32,
+      bottom: 42
+    })
+  })
+
+  it('is null when any corner is not visible (behind the camera)', () => {
+    expect(projectedCubeRect([at(10, 20), at(30, 5, false)], 2)).toBeNull()
   })
 })

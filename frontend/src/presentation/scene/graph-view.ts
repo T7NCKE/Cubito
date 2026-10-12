@@ -5,16 +5,19 @@ import { DEFAULT_CAMERA_HEIGHT } from '../camera/camera-pose'
 import type { CameraHeight } from '../camera/camera-pose'
 import type { Vec3 } from '../camera/camera-framing'
 import {
+  CUBE_OBSTACLE_MARGIN_PX,
   LABEL_OFFSET_Y_PX,
   labelBoxPx,
   labelDropPx,
   labelRectAt,
+  projectedCubeRect,
   resolveLabelCollisions
 } from '../hud/label-collision-model'
 import type {
   LabelAnchorProjection,
   LabelBox,
   LabelCandidate,
+  LabelObstacle,
   ScreenAnchor
 } from '../hud/label-collision-model'
 import { labelPriorityAt, labelRenderOrder, labelVisibleAt } from '../hud/label-visibility-model'
@@ -28,7 +31,7 @@ import { deriveDecorations, deriveNodeState } from '../theme/node-state'
 import type { NodeState } from '../theme/node-state'
 import { nodeVisual } from '../theme/node-visual'
 import type { ScenePalette } from '../theme/scene-palette'
-import { NODE_HALF_HEIGHT } from '../theme/scene-metrics'
+import { NODE_HALF_HEIGHT, NODE_SIZE } from '../theme/scene-metrics'
 import { createEdgeBinding } from './edge-line'
 import type { EdgeBinding } from './edge-line'
 import { createNodeBinding } from './node-mesh'
@@ -223,9 +226,29 @@ export function createGraphView(
     return labelDropPx(Math.abs(raised.y - anchor.y), resolution.height)
   }
 
+  /** Screen rect of a node's cube (8 projected corners + glow margin); null when off-camera. */
+  const cubeObstacle = (id: WorktreeId, project: LabelAnchorProjection): LabelObstacle | null => {
+    const center = centers.get(id)
+    if (!center) return null
+    const half = NODE_SIZE / 2
+    const corners: ScreenAnchor[] = []
+    for (const dx of [-half, half]) {
+      for (const dy of [-NODE_HALF_HEIGHT, NODE_HALF_HEIGHT]) {
+        for (const dz of [-half, half]) {
+          corners.push(project({ x: center.x + dx, y: center.y + dy, z: center.z + dz }))
+        }
+      }
+    }
+    const rect = projectedCubeRect(corners, CUBE_OBSTACLE_MARGIN_PX)
+    return rect === null ? null : { id, rect }
+  }
+
   const resolveLabelOverlaps = (project: LabelAnchorProjection): void => {
     const candidates: LabelCandidate[] = []
+    const obstacles: LabelObstacle[] = []
     for (const [id, entry] of nodes) {
+      const cube = cubeObstacle(id, project)
+      if (cube) obstacles.push(cube)
       if (!entry.policyVisible) continue
       const position = entry.label.object.position
       const anchor = project(position)
@@ -239,9 +262,9 @@ export function createGraphView(
       })
     }
     const nextHidden =
-      candidates.length < 2
+      candidates.length < 2 && obstacles.length === 0
         ? new Set<WorktreeId>()
-        : resolveLabelCollisions(candidates, hiddenByCollision)
+        : resolveLabelCollisions(candidates, hiddenByCollision, obstacles)
     hiddenByCollision.clear()
     for (const id of nextHidden) hiddenByCollision.add(id)
     for (const [id, entry] of nodes) {

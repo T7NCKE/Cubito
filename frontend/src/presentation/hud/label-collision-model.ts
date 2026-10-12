@@ -5,6 +5,8 @@ import type { NodeLabelModel } from './node-label-model'
 export const LABEL_OFFSET_Y_PX = 26
 /** Closest the drop may scale up to: bounds the label's distance from a very tightly framed node. */
 export const LABEL_DROP_MAX_FACTOR = 2.5
+/** Glow slack around a projected cube before another node's label counts as touching it. */
+export const CUBE_OBSTACLE_MARGIN_PX = 3
 /** Monospace advance for 'Fira Code'/SF Mono/Cascadia at 11px (index.html font-size). */
 export const LABEL_CHAR_ADVANCE_PX = 6.6
 /** 11px × 1.45 line-height (index.html .cubito-node-label). */
@@ -56,6 +58,23 @@ export type LabelCandidate = {
   readonly priority: number
 }
 
+/** A node's projected cube: labels of OTHER nodes must clear it; `id` is its own node. */
+export type LabelObstacle = { readonly id: string; readonly rect: LabelRect }
+
+/** Screen bounds of a cube's projected corners, grown by `margin` for the glow; null if any corner is off-camera. */
+export function projectedCubeRect(
+  corners: readonly ScreenAnchor[],
+  margin: number
+): LabelRect | null {
+  if (corners.length === 0 || corners.some((corner) => !corner.visible)) return null
+  return {
+    left: Math.min(...corners.map((c) => c.x)) - margin,
+    top: Math.min(...corners.map((c) => c.y)) - margin,
+    right: Math.max(...corners.map((c) => c.x)) + margin,
+    bottom: Math.max(...corners.map((c) => c.y)) + margin
+  }
+}
+
 const linesOf = (model: NodeLabelModel): readonly string[] => {
   const lines = [model.primary.text]
   if (model.secondary !== null) lines.push(model.secondary.text)
@@ -102,10 +121,13 @@ const byPriorityThenId = (a: LabelCandidate, b: LabelCandidate): number =>
  * result never depends on Map insertion order, which reconciliation can reorder frame to frame.
  * Hysteresis is asymmetric per candidate: a currently-hidden one is padded OUT (needs real
  * clearance to return), a currently-visible one is padded IN (needs real overlap to vanish).
+ * `obstacles` (other nodes' cubes) hide any label they touch, whatever its priority, and never
+ * join the accepted set — they are not labels.
  */
 export function resolveLabelCollisions(
   candidates: readonly LabelCandidate[],
-  hidden: ReadonlySet<string>
+  hidden: ReadonlySet<string>,
+  obstacles: readonly LabelObstacle[] = []
 ): Set<string> {
   const accepted: LabelRect[] = []
   const nextHidden = new Set<string>()
@@ -114,7 +136,10 @@ export function resolveLabelCollisions(
       ? LABEL_COLLISION_HYSTERESIS_PX
       : -LABEL_COLLISION_HYSTERESIS_PX
     const padded = pad(candidate.rect, amount)
-    if (accepted.some((rect) => intersects(padded, rect))) {
+    const blockedByCube = obstacles.some(
+      (obstacle) => obstacle.id !== candidate.id && intersects(padded, obstacle.rect)
+    )
+    if (blockedByCube || accepted.some((rect) => intersects(padded, rect))) {
       nextHidden.add(candidate.id)
     } else {
       accepted.push(candidate.rect)

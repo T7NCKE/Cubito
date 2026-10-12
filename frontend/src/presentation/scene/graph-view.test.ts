@@ -625,3 +625,64 @@ describe('resolveLabelOverlaps', () => {
     expect(h.labels.at(-1)!.object.visible).toBe(true) // fresh id, not pre-hidden — 3px overlap stays in the dead band
   })
 })
+
+// Both nodes project to x=400; each cube corner sits `ground.y * 5` px above its anchor row.
+const rows = (rootX: number, rootY: number, aY: number): LabelAnchorProjection => {
+  return (ground) => {
+    const base = ground.x === rootX ? rootY : aY
+    return { x: 400 + (ground.z - ground.x) * 0.001, y: base - ground.y * 5, visible: true }
+  }
+}
+
+describe('resolveLabelOverlaps cube obstacles', () => {
+  const twoNodes = (h: Harness): void => {
+    h.view.setResolution(800, 900)
+    h.update(
+      graphOf(record('root', null, ['a']), record('a', 'root', [], { agentStatus: 'working' })),
+      null,
+      null,
+      'isla'
+    )
+  }
+  it('hides a label that lands on ANOTHER node cube even when no label overlaps it', () => {
+    const h = harness()
+    twoNodes(h)
+    const [rootLabel, aLabel] = h.labels as [NodeLabelHandle, NodeLabelHandle]
+    const rootX = rootLabel.object.position.x
+    // root label rect 126..142; a's cube spans ~131..136 (anchor 136, height ~4.5px) -> covers it.
+    h.view.resolveLabelOverlaps(rows(rootX, 100, 136))
+    expect(rootLabel.object.visible).toBe(false)
+    expect(aLabel.object.visible).toBe(true)
+  })
+
+  it('keeps both labels when each cube clears the other label', () => {
+    const h = harness()
+    twoNodes(h)
+    const [rootLabel, aLabel] = h.labels as [NodeLabelHandle, NodeLabelHandle]
+    const rootX = rootLabel.object.position.x
+    h.view.resolveLabelOverlaps(rows(rootX, 100, 400))
+    expect(rootLabel.object.visible).toBe(true)
+    expect(aLabel.object.visible).toBe(true)
+  })
+
+  it('runs the pass with a single eligible label when another node cube covers it', () => {
+    const h = harness()
+    h.view.setResolution(800, 900)
+    h.update(
+      graphOf(record('root', null, ['a']), record('a', 'root', [], { agentStatus: 'working' })),
+      'a',
+      null,
+      'foco'
+    )
+    const [rootLabel, aLabel] = h.labels as [NodeLabelHandle, NodeLabelHandle]
+    const aX = aLabel.object.position.x
+    // only 'a' is eligible at foco; root's cube is placed over a's label (rect 126..142 at aY=100)
+    h.view.resolveLabelOverlaps((ground) => ({
+      x: 400 + (ground.z - ground.x) * 0.001,
+      y: (ground.x === aX ? 100 : 134) - ground.y * 5,
+      visible: true
+    }))
+    expect(rootLabel.object.visible).toBe(false)
+    expect(aLabel.object.visible).toBe(false)
+  })
+})
