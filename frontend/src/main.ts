@@ -32,6 +32,7 @@ import { createBrowserNotificationPresenter } from './presentation/hud/browser-n
 import { hudModel } from './presentation/hud/hud-model'
 import { createKeyboardBar } from './presentation/hud/keyboard-bar'
 import { createTerminalConnector } from './presentation/hud/terminal-connector-element'
+import type { LabelRect } from './presentation/hud/label-collision-model'
 import { createTerminalPanel } from './presentation/hud/terminal-panel-element'
 import { createTerminalPanelController } from './presentation/hud/terminal-panel-controller'
 import type { TerminalPanelController } from './presentation/hud/terminal-panel-controller'
@@ -476,6 +477,14 @@ const projectWorldToNdc = (world: Vec3): { x: number; y: number; z: number } => 
 const projectLabelAnchor = (ground: Vec3): { x: number; y: number; visible: boolean } =>
   projectToScreen(projectWorldToNdc(ground), viewportSize.width, viewportSize.height)
 
+const HUD_OBSTACLE_SELECTOR = '.cubito-fanout-form, .cubito-spawn-form, #keyboard-bar'
+
+/** Visible HUD panels in viewport px — the terminal placement routes around them. */
+const hudObstacleRects = (): LabelRect[] =>
+  Array.from(document.querySelectorAll<HTMLElement>(HUD_OBSTACLE_SELECTOR))
+    .filter((el) => !el.hidden && el.offsetWidth > 0 && el.offsetHeight > 0)
+    .map((el) => el.getBoundingClientRect())
+
 /** Builds the terminal controller on the first connection, rebinds its port on every
  *  reconnect thereafter (design Area 7) — the xterm instance/DOM panel is never recreated. */
 function bindTerminals(connection: LiveSyncConnection): void {
@@ -492,7 +501,8 @@ function bindTerminals(connection: LiveSyncConnection): void {
       nodeCenter: (id) => graphView.nodeCenter(id),
       cubeRect: (id) => graphView.nodeCubeRect(id, projectLabelAnchor),
       projectToNdc: projectWorldToNdc,
-      viewport: () => viewportSize
+      viewport: () => viewportSize,
+      obstacles: hudObstacleRects
     })
     terminalController.sync(store.get().terminals)
   }

@@ -57,4 +57,35 @@ describe('placeTerminalPanel', () => {
     )
     expect(center.x).toBeGreaterThanOrEqual(PANEL.width / 2 + MARGIN)
   })
+
+  describe('with HUD obstacles', () => {
+    const small = { width: 900, height: 700 }
+    const mid = { left: 430, top: 330, right: 470, bottom: 370 }
+    const fanOutPanel = { left: 16, right: 436, top: 12, bottom: 300 }
+
+    it('avoids the obstacle when a side that clears the cube would sit under it', () => {
+      const center = placeTerminalPanel(mid, PANEL, small, MARGIN, GAP, [fanOutPanel])
+      expect(overlaps(rectOf(center), fanOutPanel)).toBe(false)
+      expect(rectOf(center).left).toBeGreaterThanOrEqual(MARGIN)
+      expect(rectOf(center).bottom).toBeLessThanOrEqual(small.height - MARGIN)
+    })
+
+    it('docks to a screen edge as last resort instead of covering the obstacle', () => {
+      const center = placeTerminalPanel(mid, PANEL, small, MARGIN, GAP, [fanOutPanel])
+      const rect = rectOf(center)
+      const touchesEdge =
+        rect.left <= MARGIN ||
+        rect.top <= MARGIN ||
+        rect.right >= small.width - MARGIN ||
+        rect.bottom >= small.height - MARGIN
+      expect(touchesEdge).toBe(true)
+    })
+
+    it('keeps the plain side order when nothing is in the way', () => {
+      const far = { left: 800, right: 880, top: 600, bottom: 680 }
+      expect(placeTerminalPanel(cube, PANEL, VIEWPORT, MARGIN, GAP, [far])).toEqual(
+        placeTerminalPanel(cube, PANEL, VIEWPORT, MARGIN, GAP)
+      )
+    })
+  })
 })

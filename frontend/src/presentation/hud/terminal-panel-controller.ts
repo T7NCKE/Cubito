@@ -42,6 +42,8 @@ export type TerminalPanelControllerDeps = {
   /** Projected screen rect of a node's cube — the area the panel must not cover. */
   cubeRect: (nodeId: WorktreeId) => LabelRect | null
   viewport: () => { width: number; height: number }
+  /** Screen rects of HUD panels the terminal must not sit under (fan-out/spawn forms, key bar). */
+  obstacles?: () => readonly LabelRect[]
 }
 
 export type TerminalPanelController = {
@@ -332,7 +334,8 @@ export function createTerminalPanelController(
         size,
         { width, height },
         PANEL_VIEWPORT_MARGIN,
-        PANEL_CUBE_GAP
+        PANEL_CUBE_GAP,
+        deps.obstacles?.() ?? []
       )
       // Why: CSS2DObject.center is the element pivot, so moving it shifts the panel on screen
       // without touching its world position.
