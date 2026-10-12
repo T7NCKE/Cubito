@@ -45,10 +45,15 @@ export type DiffPanelHandle = {
 export function createDiffPanel(doc: Document = document): DiffPanelHandle {
   const element = doc.createElement('div')
   element.className = 'cubito-diff-panel'
+  let lastKind: DiffPanelView['kind'] | null = null
 
   return {
     element,
     apply(vm: DiffPanelView) {
+      // Why: a silent live refresh swaps lines for lines; the reader must keep their place.
+      const keepScroll = lastKind === 'lines' && vm.kind === 'lines'
+      const { scrollTop, scrollLeft } = element
+      lastKind = vm.kind
       element.replaceChildren()
       switch (vm.kind) {
         case 'lines': {
@@ -81,6 +86,10 @@ export function createDiffPanel(doc: Document = document): DiffPanelHandle {
           renderFailureText(doc, hint, vm.message ?? plainFailure(t('diff.loadError')))
           element.appendChild(hint)
           break
+      }
+      if (keepScroll) {
+        element.scrollTop = scrollTop
+        element.scrollLeft = scrollLeft
       }
     },
     dispose() {

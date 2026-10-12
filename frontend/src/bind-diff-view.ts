@@ -25,6 +25,8 @@ export type BindDiffViewDeps = {
 export type DiffStageSource = {
   stageStates(): ReadonlyMap<string, StageState> | undefined
   toggle(path: string): void
+  /** Silent status re-read on every diff poll tick (ahead/behind, staged marks). */
+  refreshStatus(): void
 }
 
 export type DiffViewBinder = {
@@ -46,8 +48,12 @@ export type DiffViewBinder = {
  * mount/unmount lifecycle.
  */
 export function createDiffViewBinder(deps: BindDiffViewDeps): DiffViewBinder {
-  const loader = createDiffLiveLoader({ store: deps.store, gateway: deps.demoGateway })
   let stageSource: DiffStageSource | null = null
+  const loader = createDiffLiveLoader({
+    store: deps.store,
+    gateway: deps.demoGateway,
+    onPolled: () => stageSource?.refreshStatus()
+  })
 
   const controller = createDiffViewController({
     createRail: deps.createRail ?? createDiffRail,

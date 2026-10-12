@@ -110,6 +110,28 @@ describe('source control flow', () => {
     expect([...view.stageStates.keys()]).toEqual(['new.ts'])
   })
 
+  it('refreshStatus picks up ahead/behind silently and skips the review lookup', async () => {
+    const { flow, gateway } = setup()
+    await flow.open('r::/w')
+    const reviewCalls = gateway.hostedReviewEligibility.mock.calls.length
+    gateway.gitSourceControlStatus.mockResolvedValueOnce(status({ ahead: 3 }))
+    await flow.refreshStatus()
+    expect(ready(flow.view()).ahead).toBe(3)
+    expect(gateway.hostedReviewEligibility.mock.calls.length).toBe(reviewCalls)
+  })
+
+  it('refreshStatus does not notify when nothing changed and never hides on failure', async () => {
+    const { flow, gateway } = setup()
+    await flow.open('r::/w')
+    const phases: string[] = []
+    flow.subscribe((view) => phases.push(view.phase))
+    await flow.refreshStatus()
+    gateway.gitSourceControlStatus.mockRejectedValueOnce(new Error('offline'))
+    await flow.refreshStatus()
+    expect(phases).toEqual([])
+    expect(flow.view().phase).toBe('ready')
+  })
+
   it('reload does nothing while hidden', async () => {
     const { flow, gateway } = setup()
     await flow.reload()

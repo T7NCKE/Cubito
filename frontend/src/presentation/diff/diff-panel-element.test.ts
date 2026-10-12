@@ -127,4 +127,29 @@ describe('createDiffPanel', () => {
     panel.dispose()
     expect(removed).toBe(true)
   })
+
+  it('keeps the scroll position across a lines-to-lines refresh but not across a file switch', () => {
+    const panel = createDiffPanel(createFakeDocument())
+    const element = elementOf(panel) as FakeElement & { scrollTop: number; scrollLeft: number }
+    element.scrollTop = 0
+    element.scrollLeft = 0
+    const rebuild = element.replaceChildren.bind(element)
+    // Real browsers reset the scroll offset once the content is emptied.
+    element.replaceChildren = () => {
+      rebuild()
+      element.scrollTop = 0
+      element.scrollLeft = 0
+    }
+    const lines: DiffPanelView = { kind: 'lines', truncated: false, lines: [] }
+    panel.apply(lines)
+    element.scrollTop = 240
+    element.scrollLeft = 12
+
+    panel.apply(lines)
+    expect([element.scrollTop, element.scrollLeft]).toEqual([240, 12])
+
+    panel.apply({ kind: 'loading' })
+    panel.apply(lines)
+    expect(element.scrollTop).toBe(0)
+  })
 })

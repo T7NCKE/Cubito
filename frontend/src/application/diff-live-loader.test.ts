@@ -734,4 +734,118 @@ describe('createDiffLiveLoader', () => {
       expect(gateway.compareCalls.length).toBe(0)
     })
   })
+
+  describe('live poll', () => {
+    const twoFiles = (bAdded = 1): BranchCompare =>
+      branchCompare({
+        entries: [
+          { path: 'src/a.ts', status: 'modified', added: 1, removed: 0 },
+          { path: 'src/b.ts', status: 'modified', added: bAdded, removed: 0 }
+        ]
+      })
+
+    const openOnSecondFile = async (gateway: FakeGateway) => {
+      const loader = createDiffLiveLoader({ store, gateway, refreshIntervalMs: 0 })
+      loader.start('repo::child')
+      await vi.waitFor(() => expect(gateway.diffCalls.length).toBe(1))
+      loader.select('src/b.ts')
+      await vi.waitFor(() => {
+        const slice = store.get().diffView
+        expect(slice.view === 'open' && slice.panel.kind).toBe('text')
+      })
+      return loader
+    }
+
+    it('an unchanged tick leaves the slice and the panel untouched', async () => {
+      setupGraph()
+      const gateway = createFakeGateway()
+      gateway.gitBranchCompareImpl = async () => twoFiles()
+      const loader = await openOnSecondFile(gateway)
+      const before = store.get().diffView
+
+      loader.poll()
+      await vi.waitFor(() => expect(gateway.compareCalls.length).toBe(2))
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      expect(store.get().diffView).toBe(before)
+      expect(gateway.diffCalls.length).toBe(2)
+      loader.stop()
+    })
+
+    it('a changed rail updates in place, keeps the selection and never shows the loading panel', async () => {
+      setupGraph()
+      const gateway = createFakeGateway()
+      gateway.gitBranchCompareImpl = async () => twoFiles()
+      const loader = await openOnSecondFile(gateway)
+      const panelKinds: string[] = []
+      store.subscribe(() => {
+        const slice = store.get().diffView
+        if (slice.view === 'open') panelKinds.push(slice.panel.kind)
+      })
+
+      gateway.gitBranchCompareImpl = async () => twoFiles(7)
+      loader.poll()
+      await vi.waitFor(() => expect(gateway.diffCalls.length).toBe(3))
+      await vi.waitFor(() => {
+        const slice = store.get().diffView
+        expect(slice.view === 'open' && slice.files[1]?.added).toBe(7)
+      })
+
+      const slice = store.get().diffView
+      expect(slice.view === 'open' && slice.selectedPath).toBe('src/b.ts')
+      expect(panelKinds).not.toContain('loading')
+      loader.stop()
+    })
+
+    it('a failing tick keeps what is on screen', async () => {
+      setupGraph()
+      const gateway = createFakeGateway()
+      gateway.gitBranchCompareImpl = async () => twoFiles()
+      const loader = await openOnSecondFile(gateway)
+      const before = store.get().diffView
+
+      gateway.gitBranchCompareImpl = async () => {
+        throw new Error('offline')
+      }
+      loader.poll()
+      await vi.waitFor(() => expect(gateway.compareCalls.length).toBe(2))
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      expect(store.get().diffView).toBe(before)
+      loader.stop()
+    })
+
+    it('polls on the interval while open and stops polling after stop()', async () => {
+      vi.useFakeTimers()
+      try {
+        setupGraph()
+        const gateway = createFakeGateway()
+        const loader = createDiffLiveLoader({ store, gateway, refreshIntervalMs: 1000 })
+        loader.start('repo::child')
+        await vi.advanceTimersByTimeAsync(10)
+        const initial = gateway.compareCalls.length
+
+        await vi.advanceTimersByTimeAsync(1000)
+        expect(gateway.compareCalls.length).toBe(initial + 1)
+
+        loader.stop()
+        await vi.advanceTimersByTimeAsync(5000)
+        expect(gateway.compareCalls.length).toBe(initial + 1)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('invokes onPolled after each tick so source-control status can follow', async () => {
+      setupGraph()
+      const gateway = createFakeGateway()
+      const onPolled = vi.fn()
+      const loader = createDiffLiveLoader({ store, gateway, refreshIntervalMs: 0, onPolled })
+      loader.start('repo::child')
+      await vi.waitFor(() => expect(gateway.diffCalls.length).toBe(1))
+      loader.poll()
+      expect(onPolled).toHaveBeenCalledOnce()
+      loader.stop()
+    })
+  })
 })

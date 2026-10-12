@@ -79,6 +79,8 @@ export type SourceControlFlow = {
   close(): void
   /** Re-reads status in place (after a file was edited); no-op while hidden. */
   reload(): Promise<void>
+  /** Silent live poll: status only (no review lookup), notifies only on change, never hides. */
+  refreshStatus(): Promise<void>
   toggleStage(path: string): Promise<void>
   setMessage(message: string): void
   commit(): Promise<void>
@@ -296,6 +298,37 @@ export function createSourceControlFlow(deps: SourceControlFlowDeps): SourceCont
     async reload() {
       if (current.phase !== 'ready') return
       await reload(current.nodeId, generation)
+    },
+    async refreshStatus() {
+      if (current.phase !== 'ready' || current.busy !== null) return
+      const { nodeId } = current
+      const ownGeneration = generation
+      let status: SourceControlStatus
+      try {
+        status = await gateway.gitSourceControlStatus(nodeId)
+      } catch {
+        return
+      }
+      if (ownGeneration !== generation || current.phase !== 'ready' || current.busy !== null) return
+      const stageStates = stageStatesOf(status.entries)
+      const unchanged =
+        current.branch === status.branch &&
+        current.hasUpstream === status.hasUpstream &&
+        current.ahead === status.ahead &&
+        current.behind === status.behind &&
+        current.stageStates.size === stageStates.size &&
+        [...stageStates].every(
+          ([path, state]) => current.phase === 'ready' && current.stageStates.get(path) === state
+        )
+      if (unchanged) return
+      patch({
+        branch: status.branch,
+        stageStates,
+        stagedCount: [...stageStates.values()].filter((state) => state !== 'unstaged').length,
+        hasUpstream: status.hasUpstream,
+        ahead: status.ahead,
+        behind: status.behind
+      })
     },
     close() {
       generation += 1

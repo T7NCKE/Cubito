@@ -35,7 +35,8 @@ export function createSourceControlBinder(deps: {
       const view = flow.view()
       return view.phase === 'ready' ? view.stageStates : undefined
     },
-    toggle: (path) => void flow.toggleStage(path)
+    toggle: (path) => void flow.toggleStage(path),
+    refreshStatus: () => void flow.refreshStatus()
   })
 
   flow.subscribe((view) => {

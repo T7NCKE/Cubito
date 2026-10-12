@@ -86,6 +86,7 @@ export function createDiffRail(doc: Document = document): DiffRailHandle {
   return {
     root,
     apply(rows: readonly DiffRailRow[], failure: FailureMessage | null = null) {
+      const scrollTop = root.scrollTop // a live refresh rebuilds rows; keep the reader's place
       root.replaceChildren()
       if (failure !== null) {
         const error = doc.createElement('div')
@@ -109,6 +110,7 @@ export function createDiffRail(doc: Document = document): DiffRailHandle {
           (path) => stageToggleCallback?.(path)
         )
         root.appendChild(rowElement)
+        root.scrollTop = scrollTop
         // Why: keyboard j/k can select rows below the rail's fold.
         if (row.selected) rowElement.scrollIntoView({ block: 'nearest' })
       }
