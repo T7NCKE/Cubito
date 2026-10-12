@@ -143,11 +143,14 @@
         position: fixed;
         left: 16px;
         bottom: 14px;
+        /* Stops short of the docked compare panel / activity feed instead of running under them. */
+        max-width: calc(100% - 32px - var(--cubito-compare-panel-width) - var(--cubito-system-feed-w));
         pointer-events: none;
       }
       .cubito-keyboard-bar {
         display: flex;
-        gap: 14px;
+        flex-wrap: wrap;
+        gap: 6px 14px;
         font-size: 11px;
         color: var(--cubito-text-dim);
       }
@@ -193,6 +196,7 @@
         display: flex;
         flex-direction: column;
         gap: 10px;
+        padding-left: 60px; /* clears the selected cube the menu is anchored to */
         font-size: 12px;
         white-space: nowrap;
       }
@@ -225,6 +229,12 @@
         font-size: 13px;
         font-weight: 500;
         color: var(--cubito-text-primary);
+      }
+      /* Caption for the field below it; the negative margin cancels the panel's 14px row gap. */
+      .cubito-form-label {
+        margin-bottom: -10px;
+        font-size: 10.5px;
+        color: var(--cubito-text-faint);
       }
       .cubito-spawn-form__field {
         height: 40px;
@@ -532,6 +542,20 @@
         font-size: 12.5px;
         cursor: pointer;
       }
+      /* Active repo's setup-command editor: set apart from the list, same controls as the add form. */
+      .cubito-project-selector__setup {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 4px;
+        padding-top: 12px;
+        border-top: 1px solid var(--cubito-panel-border);
+      }
+      .cubito-spawn-form button,
+      .cubito-fanout-form button,
+      .cubito-project-selector button {
+        font-family: inherit;
+      }
       .cubito-project-selector__error {
         font-size: 11px;
         color: var(--cubito-amber);
@@ -786,6 +810,16 @@
         font-size: 11px;
         color: var(--cubito-text-dim);
         margin-top: 4px;
+      }
+      .cubito-activity-feed__rows:empty {
+        flex: 0;
+        padding: 0;
+      }
+      .cubito-activity-feed__placeholder {
+        flex: 1;
+        padding: 18px;
+        font-size: 11.5px;
+        color: var(--cubito-text-faint);
       }
       .cubito-activity-feed__rows {
         flex: 1;
