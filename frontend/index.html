@@ -935,7 +935,8 @@
       .diff-rail__row--wt {
         border-left: 2px solid var(--cubito-amber-dim);
       }
-      /* Directory shrinks first (down to a short prefix), then the name; stats never get overlapped. */
+      /* Directory collapses first (it can vanish), then the name — but never below a readable
+         width; stats never get overlapped. */
       .diff-rail__path {
         flex: 1;
         min-width: 0;
@@ -945,7 +946,7 @@
       }
       .diff-rail__dir {
         flex: 0 100 auto;
-        min-width: 5ch;
+        min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
       }
@@ -954,7 +955,7 @@
       }
       .diff-rail__base {
         flex: 0 1 auto;
-        min-width: 0;
+        min-width: min(12ch, 100%);
         overflow: hidden;
         text-overflow: ellipsis;
       }
