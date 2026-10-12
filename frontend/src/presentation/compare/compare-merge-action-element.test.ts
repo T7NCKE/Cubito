@@ -120,6 +120,7 @@ describe('createCompareMergeAction', () => {
     action.apply(model())
     const fired: boolean[] = []
     action.onMergeWinner((syncWorkingTree) => fired.push(syncWorkingTree))
+    syncCheckboxOf(rootOf(action)).checked = false
     const button = buttonOf(rootOf(action))
     button.dispatch('click')
     button.dispatch('click')
@@ -127,13 +128,12 @@ describe('createCompareMergeAction', () => {
     expect(button.textContent).toBe('mergear ganador')
   })
 
-  it('second click fires onMergeWinner with true when the sync checkbox is checked', () => {
+  it('second click fires onMergeWinner with true by default (sync is on)', () => {
     const action = createCompareMergeAction(createFakeDocument())
     action.apply(model())
     const fired: boolean[] = []
     action.onMergeWinner((syncWorkingTree) => fired.push(syncWorkingTree))
     const root = rootOf(action)
-    syncCheckboxOf(root).checked = true
     const button = buttonOf(root)
     button.dispatch('click')
     button.dispatch('click')
@@ -198,7 +198,7 @@ describe('createCompareMergeAction', () => {
     const result = resultOf(rootOf(action))
     expect(result.children[0]!.textContent).toContain('Mergeado al padre')
     expect(result.children[0]!.textContent).toContain('abcdef1')
-    expect(result.children[0]!.textContent).toContain('Sincronizá')
+    expect(result.children[0]!.textContent).toContain('git reset --hard')
   })
 
   it('renders a read-only conflict file-name list', () => {
@@ -240,22 +240,57 @@ describe('createCompareMergeAction', () => {
     expect(syncRowOf(rootOf(action)).hidden).toBe(true)
   })
 
-  it('sync checkbox row is visible and unchecked by default when syncCapable', () => {
+  it('never asks a host without the sync capability to sync, whatever the checkbox says', () => {
+    const action = createCompareMergeAction(createFakeDocument())
+    action.apply(model({ syncCapable: false }))
+    const fired: boolean[] = []
+    action.onMergeWinner((syncWorkingTree) => fired.push(syncWorkingTree))
+    const button = buttonOf(rootOf(action))
+    button.dispatch('click')
+    button.dispatch('click')
+    expect(fired).toEqual([false])
+  })
+
+  it('sync checkbox row is visible and checked by default when syncCapable', () => {
     const action = createCompareMergeAction(createFakeDocument())
     action.apply(model({ syncCapable: true }))
     const root = rootOf(action)
     expect(syncRowOf(root).hidden).toBe(false)
-    expect(syncCheckboxOf(root).checked).toBe(false)
+    expect(syncCheckboxOf(root).checked).toBe(true)
   })
 
-  it('sync checkbox resets to unchecked when the action goes hidden', () => {
+  it('sync checkbox resets to checked when the action goes hidden', () => {
     const action = createCompareMergeAction(createFakeDocument())
     action.apply(model())
     const root = rootOf(action)
-    syncCheckboxOf(root).checked = true
+    syncCheckboxOf(root).checked = false
     action.apply(model({ visible: false }))
     action.apply(model({ visible: true }))
-    expect(syncCheckboxOf(root).checked).toBe(false)
+    expect(syncCheckboxOf(root).checked).toBe(true)
+  })
+
+  it('keeps the button disabled after any successful merge until a new winner resets the phase', () => {
+    const action = createCompareMergeAction(createFakeDocument())
+    const root = rootOf(action)
+    for (const workingTree of [
+      undefined,
+      { status: 'synced' as const },
+      { status: 'failed' as const, message: 'x' },
+      { status: 'skipped' as const, reason: 'dirty' as const }
+    ]) {
+      action.apply(
+        model({
+          merge: {
+            phase: 'clean',
+            commitOid: 'abcdef1',
+            ...(workingTree === undefined ? {} : { workingTree })
+          }
+        })
+      )
+      expect(buttonOf(root).disabled).toBe(true)
+    }
+    action.apply(model({ merge: idle }))
+    expect(buttonOf(root).disabled).toBe(false)
   })
 
   it('renders "padre sincronizado" for a synced workingTree', () => {
@@ -372,7 +407,8 @@ describe('createCompareMergeAction', () => {
     const action = createCompareMergeAction(createFakeDocument())
     action.apply(model({ merge: { phase: 'clean', commitOid: 'abcdef1234567' } }))
     const result = resultOf(rootOf(action))
-    expect(result.children[0]!.textContent).toContain('Sincronizá')
+    expect(result.children[0]!.textContent).toContain('git read-tree -u -m abcdef1^1 HEAD')
+    expect(result.children[0]!.textContent).toContain('git reset --hard')
   })
 
   it('dispose removes the root element', () => {

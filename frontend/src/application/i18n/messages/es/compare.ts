@@ -14,7 +14,7 @@ export const esCompare: Record<keyof typeof enCompare, string> = {
   'compare.conflict': 'Conflicto — sin cambios aplicados:',
   'compare.syncParent': 'sincronizar el padre',
   'compare.mergedClean':
-    'Mergeado al padre ({oid}). Sincronizá el worktree padre (reset/checkout) para ver los cambios.',
+    'Mergeado al padre ({oid}), pero sus archivos no se sincronizaron. En el worktree padre corré `git read-tree -u -m {oid}^1 HEAD` (conserva tus ediciones locales) o `git reset --hard` (las descarta).',
   'compare.mergedSynced': 'Mergeado al padre ({oid}) — padre sincronizado.',
   'compare.mergedUnsynced':
     'Mergeado al padre ({oid}), pero sus archivos no se actualizaron: el padre muestra el merge invertido hasta que lo termines o lo deshagas.',

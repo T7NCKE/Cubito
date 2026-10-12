@@ -12,7 +12,7 @@ export const enCompare = {
   'compare.conflict': 'Conflict — no changes applied:',
   'compare.syncParent': 'sync the parent',
   'compare.mergedClean':
-    'Merged into the parent ({oid}). Sync the parent worktree (reset/checkout) to see the changes.',
+    'Merged into the parent ({oid}), but its files were not synced. In the parent worktree run `git read-tree -u -m {oid}^1 HEAD` (keeps your local edits) or `git reset --hard` (discards them).',
   'compare.mergedSynced': 'Merged into the parent ({oid}) — parent synced.',
   'compare.mergedUnsynced':
     'Merged into the parent ({oid}), but its files were not updated: the parent shows the merge reversed until you finish or undo it.',

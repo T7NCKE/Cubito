@@ -90,11 +90,15 @@ export function createCompareMergeAction(doc: Document = document): CompareMerge
   let capable = false
   let mergeCallback: ((syncWorkingTree: boolean) => void) | null = null
 
+  // Why: sync is atomic and preflighted on capable hosts, so it is the safe default.
+  syncCheckbox.checked = true
+  let syncCapable = false
+
   const resetSyncCheckbox = (): void => {
-    syncCheckbox.checked = false
+    syncCheckbox.checked = true
   }
 
-  twoStep.onConfirm(() => mergeCallback?.(syncCheckbox.checked))
+  twoStep.onConfirm(() => mergeCallback?.(syncCapable && syncCheckbox.checked))
 
   const appendLine = (modifier: string, failure: FailureMessage): void => {
     const line = doc.createElement('div')
@@ -174,9 +178,12 @@ export function createCompareMergeAction(doc: Document = document): CompareMerge
           busy: t('compare.merging')
         },
         busy: model.merge.phase === 'running',
-        // Why: re-merging an already-contained winner is a no-op; a new winner resets the phase.
-        disabled: !capable || model.merge.phase === 'already-merged'
+        // Why: a merged winner must not re-fire (old hosts would commit a duplicate); picking a
+        // different winner resets the phase.
+        disabled:
+          !capable || model.merge.phase === 'already-merged' || model.merge.phase === 'clean'
       })
+      syncCapable = model.syncCapable
       syncRow.hidden = !model.syncCapable
       renderResult(model.merge)
     },

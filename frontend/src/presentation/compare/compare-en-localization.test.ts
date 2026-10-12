@@ -86,7 +86,7 @@ describe('compare surfaces in English', () => {
     expect(texts).toContain('merge winner')
     expect(texts).toContain('sync the parent')
     expect(texts).toContain(
-      'Merged into the parent (abcdef1). Sync the parent worktree (reset/checkout) to see the changes.'
+      'Merged into the parent (abcdef1), but its files were not synced. In the parent worktree run `git read-tree -u -m abcdef1^1 HEAD` (keeps your local edits) or `git reset --hard` (discards them).'
     )
   })
 })
