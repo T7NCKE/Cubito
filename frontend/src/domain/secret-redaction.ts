@@ -1,3 +1,5 @@
+// Why: src/shared/cubito-secret-redaction.ts is the engine-side twin; keep the rules identical
+// (src/shared/cubito-secret-redaction-samples.json is the parity fixture).
 export const REDACTED = '‹redacted›'
 
 const SECRET_FLAG = '(?:token|secret|capability|api-key|apikey|password|passwd)'

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { REDACTED, redactSecrets } from './secret-redaction'
 
@@ -70,5 +71,19 @@ describe('redactSecrets', () => {
   it('is idempotent', () => {
     const once = redactSecrets('--token abc dcap_123456')
     expect(redactSecrets(once)).toBe(once)
+  })
+})
+
+// Why: shared with src/shared/cubito-secret-redaction.test.ts so the engine-side copy cannot drift.
+const sharedSamples = JSON.parse(
+  readFileSync(
+    new URL('../../../src/shared/cubito-secret-redaction-samples.json', import.meta.url),
+    'utf8'
+  )
+) as { input: string; expected: string }[]
+
+describe('redactSecrets shared vectors', () => {
+  it.each(sharedSamples)('redacts $input', ({ input, expected }) => {
+    expect(redactSecrets(input)).toBe(expected)
   })
 })

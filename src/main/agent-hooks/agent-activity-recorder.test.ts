@@ -12,6 +12,25 @@ function hookEvent(overrides: Partial<AgentActivityHookEvent> = {}): AgentActivi
 }
 
 describe('createAgentActivityRecorder', () => {
+  it('redacts secrets in a run command before it is recorded for the wire', () => {
+    const recorder = createAgentActivityRecorder()
+
+    const recorded = recorder.observe(
+      hookEvent({
+        payload: {
+          state: 'working',
+          toolName: 'Bash',
+          toolInput: 'orca orchestration send --dispatch-capability dcap_abc123 --token hunter2'
+        }
+      })
+    )
+
+    expect(recorded).toMatchObject({
+      kind: 'run',
+      target: 'orca orchestration send --dispatch-capability ‹redacted› --token ‹redacted›'
+    })
+  })
+
   it('records a PreToolUse Edit with a relativized target and agent', () => {
     const recorder = createAgentActivityRecorder()
 
