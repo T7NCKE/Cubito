@@ -31,7 +31,8 @@ export type SystemViewController = {
     systemView: SystemViewSlice,
     connection: ConnectionState,
     branchLabel: string,
-    source: SystemGraphSourceKind
+    source: SystemGraphSourceKind,
+    agentActive?: boolean
   ): void
   dispose(): void
 }
@@ -68,7 +69,7 @@ export function createSystemViewController(deps: SystemViewControllerDeps): Syst
   }
 
   return {
-    sync(systemView, connection, branchLabel, source) {
+    sync(systemView, connection, branchLabel, source, agentActive = true) {
       if (systemView.view !== 'open') {
         if (mounted) {
           unmount()
@@ -85,7 +86,8 @@ export function createSystemViewController(deps: SystemViewControllerDeps): Syst
         connection,
         branch: branchLabel,
         counts: systemHudCounts(systemView),
-        source
+        source,
+        agentActive
       })
     },
     dispose(): void {

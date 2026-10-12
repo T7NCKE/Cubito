@@ -21,6 +21,8 @@ export type SystemHudModel = {
   /** Live-validation proof (Wave F4): the WS payloads are E2EE so DevTools can't show which
    *  transport is feeding the graph — the HUD root exposes it as a plain `data-source` attribute. */
   source: SystemGraphSourceKind
+  /** False hides the "claude editing" label; omitted means active (scripted demo). */
+  agentActive?: boolean
 }
 
 export type SystemHudHandle = {
@@ -76,10 +78,13 @@ export function createSystemHud(doc: Document = document): SystemHudHandle {
       connectionDot.style.backgroundColor = `var(${DOT_VAR[connectionDotColor(model.connection)]})`
       connectionText.textContent = connectionLabel(model.connection)
       modeLine.textContent = `${model.branch} · ${t('system.modeSuffix')}`
-      countersRest.textContent = t('system.counters', {
+      const agentActive = model.agentActive ?? true
+      editingLabel.hidden = !agentActive
+      const counters = t('system.counters', {
         touched: tn('system.touched', model.counts.tocados),
         created: tn('system.created', model.counts.nuevo)
       })
+      countersRest.textContent = agentActive ? counters : counters.replace(/^ · /, '')
       root.dataset.source = model.source
     },
     dispose() {

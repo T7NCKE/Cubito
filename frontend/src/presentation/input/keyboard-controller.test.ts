@@ -96,7 +96,11 @@ function withRunningCamada(
 
 function setup(selectedId: string | null = 'b', platform = LINUX) {
   const store = createSceneStore()
-  store.update({ graph: buildFanGraph(), selection: { selectedId } })
+  store.update({
+    graph: buildFanGraph(),
+    selection: { selectedId },
+    connection: { state: 'connected', runtimeId: 'r' }
+  })
   const heights = fakeHeights()
   const terminal = fakeTerminalCommandPort()
   const diff = { select: vi.fn() }
@@ -613,7 +617,10 @@ describe('createKeyboardController', () => {
 
     it('Tab with a terminal focused still takes precedence over island cycling', () => {
       const { store, controller } = setupWithRepos()
-      store.update({ selection: { selectedId: 'x1' } })
+      store.update({
+        selection: { selectedId: 'x1' },
+        connection: { state: 'connected', runtimeId: 'r' }
+      })
       controller.handleKeyDown(baseEvent({ key: 't' }))
       const activeBefore = store.get().repos.activeRepoId
 
@@ -763,6 +770,16 @@ describe('createKeyboardController', () => {
       controller.handleKeyDown(baseEvent({ key: 'd' }))
       const { systemView, diffView } = store.get()
       expect([systemView.view, diffView.view].filter((v) => v === 'open')).toHaveLength(1)
+    })
+  })
+
+  describe('t without a host (demo mode)', () => {
+    it('does not open a terminal panel it could never mount', () => {
+      const { store, terminal, controller } = setup('a')
+      store.update({ connection: { state: 'down', reason: 'not connected' } })
+      expect(controller.handleKeyDown(baseEvent({ key: 't' }))).toBe(false)
+      expect(store.get().terminals.activePanel).toBeNull()
+      expect(terminal.focusActivePanel).not.toHaveBeenCalled()
     })
   })
 

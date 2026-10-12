@@ -192,6 +192,7 @@ export function createProjectSelector(doc: Document = document): ProjectSelector
   kindSelect.addEventListener('change', () => {
     addFieldChangeCallback?.('kind', (kindSelect as unknown as { value: string }).value)
   })
+  addRow.addEventListener('click', () => openAddFormCallback?.())
   submitButton.addEventListener('click', () => addSubmitCallback?.())
   cancelButton.addEventListener('click', () => addCancelCallback?.())
 

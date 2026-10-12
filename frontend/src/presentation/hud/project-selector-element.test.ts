@@ -388,6 +388,15 @@ describe('createProjectSelector', () => {
     expect(onAddFieldChange).toHaveBeenCalledWith('kind', 'folder')
   })
 
+  it('clicking the add-repo row opens the add form', () => {
+    const selector = createProjectSelector(createFakeDocument())
+    const onOpenAddForm = vi.fn()
+    selector.onOpenAddForm(onOpenAddForm)
+    selector.apply(listModel())
+    addRowOf(rootOf(selector)).fire('click')
+    expect(onOpenAddForm).toHaveBeenCalledOnce()
+  })
+
   it('clicking agregar repo fires onAddSubmit, clicking cancelar fires onAddCancel', () => {
     const selector = createProjectSelector(createFakeDocument())
     selector.apply(formModel())

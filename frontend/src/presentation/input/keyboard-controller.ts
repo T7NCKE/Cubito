@@ -257,6 +257,8 @@ export function createKeyboardController(deps: KeyboardControllerDeps): Keyboard
       if (selectedId === null) return false
       const forceNew = command.forceNew === true
       const activePanel = store.get().terminals.activePanel
+      // Why: with no host (demo) nothing would mount, yet the panel state would swap the key hints.
+      if (activePanel === null && store.get().connection.state !== 'connected') return false
       if (!forceNew && activePanel?.nodeId === selectedId) {
         store.dispatchTerminal({ type: 'set-focused', focused: true })
       } else {

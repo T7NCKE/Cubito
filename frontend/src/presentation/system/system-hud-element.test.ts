@@ -10,6 +10,7 @@ type FakeElement = {
   readonly dataset: Record<string, string>
   className: string
   textContent: string
+  hidden: boolean
   appendChild(child: FakeElement): FakeElement
   replaceChildren(): void
   remove(): void
@@ -23,6 +24,7 @@ const createFakeElement = (tag: string): FakeElement => {
     dataset: {},
     className: '',
     textContent: '',
+    hidden: false,
     appendChild(child) {
       el.children.push(child)
       return child
@@ -85,6 +87,21 @@ describe('createSystemHud', () => {
     expect(modeLineOf(root).textContent).toBe('cubito/auth-retry · sistema en vivo')
     expect(countersLineOf(root).children[0]!.textContent).toBe('claude editando')
     expect(countersLineOf(root).children[1]!.textContent).toBe(' · 2 endpoints tocados · 1 nuevo')
+  })
+
+  it('drops the "claude editing" label and its separator when no agent is active', () => {
+    created = []
+    const hud = createSystemHud(createFakeDocument())
+    hud.apply({
+      connection: connected(),
+      branch: 'b',
+      counts: { tocados: 0, nuevo: 0 },
+      source: 'poll',
+      agentActive: false
+    })
+    const line = countersLineOf(rootOf(hud))
+    expect(line.children[0]!.hidden).toBe(true)
+    expect(line.children[1]!.textContent).toBe('0 endpoints tocados · 0 nuevos')
   })
 
   it('substitutes tocados/nuevo counts on line 3', () => {

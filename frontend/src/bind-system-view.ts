@@ -111,7 +111,18 @@ export function createSystemViewBinder(deps: BindSystemViewDeps): SystemViewBind
       // Offline (no real gateway ever bound) always runs the scripted driver — the source itself
       // never starts, so its own currentSource() would report a meaningless default.
       const sourceKind = hasRealGateway ? source.currentSource() : 'demo'
-      controller.sync(deps.store.get().systemView, state.connection, branchLabel, sourceKind)
+      // The scripted demo always plays an agent; a live view needs the node's agent to be busy.
+      const agentActive =
+        sourceKind === 'demo' ||
+        (selectedId !== null &&
+          (state.graph.nodes.get(selectedId)?.activity.agentStatus ?? 'idle') !== 'idle')
+      controller.sync(
+        deps.store.get().systemView,
+        state.connection,
+        branchLabel,
+        sourceKind,
+        agentActive
+      )
     },
     rebindGateway(gateway: SystemViewGatewayPort, streamPort?: SystemGraphStreamPort): void {
       hasRealGateway = true
