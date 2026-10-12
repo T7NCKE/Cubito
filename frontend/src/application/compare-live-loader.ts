@@ -16,6 +16,8 @@ export type CompareLiveLoaderGatewayPort = Pick<
 export type CompareLiveLoaderDeps = {
   store: SceneStore
   gateway: CompareLiveLoaderGatewayPort
+  /** Poll period for refreshing loaded rails while open; 0 disables (tests). */
+  refreshIntervalMs?: number
 }
 
 export type CompareLiveLoader = {
@@ -24,6 +26,8 @@ export type CompareLiveLoader = {
   start(members: readonly WorktreeId[]): void
   /** Loads the rail of children that joined the litter after `start`. */
   add(members: readonly WorktreeId[]): void
+  /** Re-reads every loaded rail; unchanged or failed reads leave the store untouched. */
+  refresh(): void
   select(childId: WorktreeId, path: string): void
   stop(): void
   rebindGateway(gateway: CompareLiveLoaderGatewayPort): void
@@ -38,9 +42,14 @@ type CompareRef = { mergeBase: string; headOid: string }
  * store post-await, keyed by childId, so a stopped loader or a closed/reopened compare view never
  * clobbers newer state with a stale resolution.
  */
+const DEFAULT_REFRESH_INTERVAL_MS = 3000
+
 export function createCompareLiveLoader(deps: CompareLiveLoaderDeps): CompareLiveLoader {
   let gateway = deps.gateway
   let stopped = true
+  const refreshIntervalMs = deps.refreshIntervalMs ?? DEFAULT_REFRESH_INTERVAL_MS
+  let refreshTimer: ReturnType<typeof setInterval> | null = null
+  let refreshing = false
 
   function dispatch(action: Parameters<SceneStore['dispatchCompareView']>[0]): void {
     if (stopped) return
@@ -127,6 +136,56 @@ export function createCompareLiveLoader(deps: CompareLiveLoaderDeps): CompareLiv
     }
   }
 
+  // Why: a poll must never flash 'loading' or an error over a rail the user is reading.
+  async function refreshChildRail(childId: WorktreeId): Promise<void> {
+    const baseRef = resolveChildBaseRef(childId)
+    if (baseRef === null) return
+    try {
+      const compare = await gateway.gitBranchCompare(childId, baseRef)
+      if (stopped || !isLiveMember(childId) || compare.status !== 'ready') return
+      const slice = deps.store.get().compareView
+      const before = slice.view === 'open' ? slice.childLoads[childId] : undefined
+      if (
+        before?.compare?.headOid === compare.headOid &&
+        before.compare.mergeBase === compare.mergeBase
+      ) {
+        return
+      }
+      const ref = { headOid: compare.headOid, mergeBase: compare.mergeBase }
+      dispatch({
+        type: 'child-rail-loaded',
+        childId,
+        compare: ref,
+        files: compare.entries.map((entry) => ({
+          path: entry.path,
+          status: entry.status,
+          added: entry.added,
+          removed: entry.removed
+        }))
+      })
+      const selected = selectedPathOf(childId)
+      if (selected !== null) void loadChildPanel(childId, selected, ref)
+    } catch {
+      // keep what is on screen; the next tick retries
+    }
+  }
+
+  function refresh(): void {
+    if (stopped || refreshing) return
+    const slice = deps.store.get().compareView
+    if (slice.view !== 'open') return
+    const ids = Object.keys(slice.childLoads).filter((id) => !pending.has(id))
+    refreshing = true
+    void Promise.all(ids.map(refreshChildRail)).finally(() => {
+      refreshing = false
+    })
+  }
+
+  function stopRefreshTimer(): void {
+    if (refreshTimer !== null) clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+
   function selectedPathOf(childId: WorktreeId): string | null {
     const slice = deps.store.get().compareView
     return slice.view === 'open' ? (slice.childLoads[childId]?.selectedPath ?? null) : null
@@ -160,10 +219,13 @@ export function createCompareLiveLoader(deps: CompareLiveLoaderDeps): CompareLiv
       for (const childId of members) {
         void loadChildRail(childId)
       }
+      stopRefreshTimer()
+      if (refreshIntervalMs > 0) refreshTimer = setInterval(refresh, refreshIntervalMs)
     },
     add(members) {
       for (const childId of members) void loadChildRail(childId)
     },
+    refresh,
     select(childId, path) {
       const slice = deps.store.get().compareView
       const load = slice.view === 'open' ? slice.childLoads[childId] : undefined
@@ -176,6 +238,7 @@ export function createCompareLiveLoader(deps: CompareLiveLoaderDeps): CompareLiv
       stopped = true
       pending.clear()
       releaseSubscription()
+      stopRefreshTimer()
     },
     rebindGateway(newGateway) {
       gateway = newGateway

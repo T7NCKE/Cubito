@@ -468,4 +468,90 @@ describe('createCompareLiveLoader', () => {
     expect(gatewayA.diffCalls.length).toBe(0)
     loader.stop()
   })
+
+  describe('refresh while open', () => {
+    const loadOf = (id: string) => {
+      const slice = store.get().compareView
+      return slice.view === 'open' ? slice.childLoads[id] : undefined
+    }
+
+    const startLoaded = async (gateway: FakeGateway) => {
+      setupGraph()
+      store.dispatchCompareView({ type: 'open', members: ['repo::child-a'] })
+      const loader = createCompareLiveLoader({ store, gateway, refreshIntervalMs: 0 })
+      loader.start(['repo::child-a'])
+      await vi.waitFor(() => expect(loadOf('repo::child-a')?.status).toBe('ready'))
+      return loader
+    }
+
+    it('re-loads the rail when the child head moved, keeping the selected file', async () => {
+      const gateway = createFakeGateway()
+      const loader = await startLoaded(gateway)
+      loader.select('repo::child-a', 'src/a.ts')
+      await vi.waitFor(() => expect(loadOf('repo::child-a')?.panel.kind).toBe('text'))
+      gateway.gitBranchCompareImpl = async () =>
+        branchCompare({
+          headOid: 'head-2',
+          entries: [
+            { path: 'src/a.ts', status: 'modified', added: 9, removed: 1 },
+            { path: 'src/b.ts', status: 'added', added: 4, removed: 0 }
+          ]
+        })
+      loader.refresh()
+      await vi.waitFor(() => expect(loadOf('repo::child-a')?.files).toHaveLength(2))
+      expect(loadOf('repo::child-a')?.selectedPath).toBe('src/a.ts')
+      expect(loadOf('repo::child-a')?.panel.kind).toBe('text') // no loading flash
+      await vi.waitFor(() =>
+        expect(gateway.diffCalls.at(-1)?.compare).toEqual({
+          headOid: 'head-2',
+          mergeBase: 'merge-base'
+        })
+      )
+      loader.stop()
+    })
+
+    it('does not touch the store when nothing changed', async () => {
+      const gateway = createFakeGateway()
+      const loader = await startLoaded(gateway)
+      const before = store.get().compareView
+      loader.refresh()
+      await vi.waitFor(() => expect(gateway.compareCalls).toHaveLength(2))
+      await Promise.resolve()
+      expect(store.get().compareView).toBe(before)
+      loader.stop()
+    })
+
+    it('keeps the loaded rail when a refresh fails', async () => {
+      const gateway = createFakeGateway()
+      const loader = await startLoaded(gateway)
+      gateway.gitBranchCompareImpl = async () => {
+        throw new Error('boom')
+      }
+      loader.refresh()
+      await vi.waitFor(() => expect(gateway.compareCalls).toHaveLength(2))
+      await Promise.resolve()
+      expect(loadOf('repo::child-a')?.status).toBe('ready')
+      loader.stop()
+    })
+
+    it('polls on the interval while started and stops with the loader', async () => {
+      vi.useFakeTimers()
+      try {
+        setupGraph()
+        store.dispatchCompareView({ type: 'open', members: ['repo::child-a'] })
+        const gateway = createFakeGateway()
+        const loader = createCompareLiveLoader({ store, gateway, refreshIntervalMs: 1000 })
+        loader.start(['repo::child-a'])
+        await vi.advanceTimersByTimeAsync(0)
+        expect(gateway.compareCalls).toHaveLength(1)
+        await vi.advanceTimersByTimeAsync(1000)
+        expect(gateway.compareCalls).toHaveLength(2)
+        loader.stop()
+        await vi.advanceTimersByTimeAsync(5000)
+        expect(gateway.compareCalls).toHaveLength(2)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
 })
