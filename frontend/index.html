@@ -1043,6 +1043,14 @@
         width: var(--cubito-compare-panel-width);
         overflow: hidden;
         pointer-events: none;
+        /* Grid (not absolute columns) so the merge box takes its own row under the diff and never
+           covers its last lines; the HUD stays absolute over the header row. */
+        display: grid;
+        grid-template-columns: var(--cubito-compare-child-rail-w) var(--cubito-compare-file-rail-w) minmax(
+            0,
+            1fr
+          );
+        grid-template-rows: var(--cubito-compare-header-h) auto minmax(0, 1fr) auto;
       }
       body[data-compare-panel='open'] #compare {
         pointer-events: auto; /* a stray click in the gutter must not reach OrbitControls */
@@ -1131,30 +1139,84 @@
       /* Compare reuses diff mode's own file-rail/panel elements — override their fixed
          left/width (set for #diff's two-column layout) so they sit in compare's third and
          fourth columns instead, below the panel's own header. */
+      #compare .cubito-compare-rail {
+        position: static;
+        grid-column: 1;
+        grid-row: 3 / 5;
+        width: auto;
+        height: auto;
+        min-height: 0;
+      }
       #compare .cubito-diff-rail {
-        left: var(--cubito-compare-child-rail-w);
-        width: var(--cubito-compare-file-rail-w);
-        top: var(--cubito-compare-header-h);
-        height: calc(100% - var(--cubito-compare-header-h));
+        position: static;
+        grid-column: 2;
+        grid-row: 3 / 5;
+        width: auto;
+        height: auto;
+        min-height: 0;
       }
       #compare .cubito-diff-panel {
-        left: calc(var(--cubito-compare-child-rail-w) + var(--cubito-compare-file-rail-w));
-        width: calc(100% - var(--cubito-compare-child-rail-w) - var(--cubito-compare-file-rail-w));
+        position: static;
+        grid-column: 3;
+        grid-row: 3;
+        width: auto;
+        height: auto;
+        min-height: 0;
         /* .cubito-diff-panel sets overflow-y only; `white-space: pre` diff lines need x too. */
         overflow: auto;
       }
-      /* Winner-merge action (Change E) — sits over the file panel, bottom-right. */
+      /* Winner-merge action (Change E) — its own grid row under the file panel, bottom-right. */
       .cubito-compare-merge-action {
-        position: absolute;
-        right: 16px;
-        bottom: 16px;
+        grid-column: 3;
+        grid-row: 4;
+        justify-self: end;
         width: min(320px, calc(100% - 32px));
-        max-height: 40%;
+        margin: 8px 16px 16px;
+        max-height: 40vh;
         overflow-y: auto;
         pointer-events: auto;
         background: var(--cubito-panel-surface);
         border: 1px solid var(--cubito-panel-border);
         font-size: 11.5px;
+      }
+      /* Narrow viewports: the litter becomes a horizontal strip above the files so the diff column
+         keeps usable width (side-by-side rails left it ~120px at 900px). */
+      @media (max-width: 900px) {
+        :root {
+          --cubito-compare-file-rail-w: 150px;
+        }
+        #compare {
+          grid-template-columns: var(--cubito-compare-file-rail-w) minmax(0, 1fr);
+        }
+        #compare .cubito-compare-rail {
+          grid-column: 1 / -1;
+          grid-row: 2;
+          display: flex;
+          overflow-x: auto;
+          overflow-y: hidden;
+          max-height: 112px;
+          border-right: none;
+          border-bottom: 1px solid var(--cubito-panel-border);
+        }
+        #compare .compare-rail__row {
+          flex: 0 0 168px;
+          align-content: start;
+          border-bottom: none;
+          border-right: 1px solid var(--cubito-panel-border);
+        }
+        #compare .cubito-compare-rail__empty {
+          flex: 1;
+        }
+        #compare .cubito-diff-rail {
+          grid-column: 1;
+          grid-row: 3 / 5;
+        }
+        #compare .cubito-diff-panel {
+          grid-column: 2;
+        }
+        .cubito-compare-merge-action {
+          grid-column: 2;
+        }
       }
       .compare-merge-action__button {
         display: block;
