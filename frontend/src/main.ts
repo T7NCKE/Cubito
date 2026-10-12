@@ -487,13 +487,22 @@ const projectWorldToNdc = (world: Vec3): { x: number; y: number; z: number } => 
 const projectLabelAnchor = (ground: Vec3): { x: number; y: number; visible: boolean } =>
   projectToScreen(projectWorldToNdc(ground), viewportSize.width, viewportSize.height)
 
+const HUD_TEXT_SELECTOR = '#hud .cubito-hud__line'
 const HUD_OBSTACLE_SELECTOR = '.cubito-fanout-form, .cubito-spawn-form, #keyboard-bar'
 
-/** Visible HUD panels in viewport px — the terminal placement routes around them. */
-const hudObstacleRects = (): LabelRect[] =>
-  Array.from(document.querySelectorAll<HTMLElement>(HUD_OBSTACLE_SELECTOR))
+/** Visible HUD panels and status text in viewport px — the terminal placement routes around them. */
+const hudObstacleRects = (): LabelRect[] => {
+  const panels = Array.from(document.querySelectorAll<HTMLElement>(HUD_OBSTACLE_SELECTOR))
     .filter((el) => !el.hidden && el.offsetWidth > 0 && el.offsetHeight > 0)
     .map((el) => el.getBoundingClientRect())
+  // Why: the HUD lines are full-width blocks; only their text is worth avoiding.
+  const lines = Array.from(document.querySelectorAll<HTMLElement>(HUD_TEXT_SELECTOR)).map((el) => {
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    return range.getBoundingClientRect()
+  })
+  return [...panels, ...lines.filter((rect) => rect.width > 0)]
+}
 
 /** Builds the terminal controller on the first connection, rebinds its port on every
  *  reconnect thereafter (design Area 7) — the xterm instance/DOM panel is never recreated. */
