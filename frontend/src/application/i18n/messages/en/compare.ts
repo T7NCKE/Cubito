@@ -21,6 +21,8 @@ export const enCompare = {
   'compare.parentSkipped': 'parent not synced: it has uncommitted changes.',
   'compare.blocked.untracked-overwrite':
     'The parent has files the winner would overwrite — nothing was merged. Move or delete them, then merge again:',
+  'compare.blocked.ignored-overwrite':
+    'The parent has git-ignored files the winner would overwrite — nothing was merged. Move or back them up, then merge again:',
   'compare.blocked.dirty-parent':
     'The parent has uncommitted changes in files the winner changes — nothing was merged. Commit or stash them, then merge again:',
   'compare.blocked.sync-refused': 'The parent worktree cannot be updated — nothing was merged.',

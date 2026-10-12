@@ -137,4 +137,86 @@ describe('commitWinnerMergeAtomically', () => {
     })
     expect(await readFile(path.join(inputs.parentDir, 'new.txt', 'inner.txt'), 'utf8')).toBe('x\n')
   })
+
+  it('blocks when the merge would overwrite a git-ignored file in the parent', async () => {
+    const inputs = await createMergeInputs()
+    await writeFile(path.join(inputs.parentDir, '.gitignore'), 'new.txt\n')
+    await writeFile(path.join(inputs.parentDir, 'new.txt'), 'precious local\n')
+
+    const result = await commitWinnerMergeAtomically(
+      gitRun(inputs.parentDir, () => false),
+      {
+        ...inputs,
+        parentRef: 'refs/heads/parent-branch',
+        message: 'Merge',
+        syncWorkingTree: true
+      }
+    )
+
+    expect(result).toEqual({
+      outcome: 'blocked',
+      reason: 'ignored-overwrite',
+      paths: ['new.txt']
+    })
+    expect(await readFile(path.join(inputs.parentDir, 'new.txt'), 'utf8')).toBe('precious local\n')
+    expect(git(inputs.parentDir, ['rev-parse', 'refs/heads/parent-branch'])).toBe(inputs.parentTip)
+  })
+
+  it('blocks on an ignored folder that holds a path the merge adds', async () => {
+    const inputs = await createMergeInputs()
+    await writeFile(path.join(inputs.parentDir, '.gitignore'), 'new.txt/\n')
+    await mkdir(path.join(inputs.parentDir, 'new.txt'))
+    await writeFile(path.join(inputs.parentDir, 'new.txt', 'inner.txt'), 'x\n')
+
+    const result = await commitWinnerMergeAtomically(
+      gitRun(inputs.parentDir, () => false),
+      {
+        ...inputs,
+        parentRef: 'refs/heads/parent-branch',
+        message: 'Merge',
+        syncWorkingTree: true
+      }
+    )
+
+    expect(result).toMatchObject({ outcome: 'blocked', reason: 'ignored-overwrite' })
+  })
+
+  it('ignores git-ignored files the merge does not touch', async () => {
+    const inputs = await createMergeInputs()
+    await writeFile(path.join(inputs.parentDir, '.gitignore'), '*.log\nnode_modules/\n')
+    await writeFile(path.join(inputs.parentDir, 'debug.log'), 'noise\n')
+    await mkdir(path.join(inputs.parentDir, 'node_modules'))
+    await writeFile(path.join(inputs.parentDir, 'node_modules', 'dep.js'), 'x\n')
+
+    const result = await commitWinnerMergeAtomically(
+      gitRun(inputs.parentDir, () => false),
+      {
+        ...inputs,
+        parentRef: 'refs/heads/parent-branch',
+        message: 'Merge',
+        syncWorkingTree: true
+      }
+    )
+
+    expect(result).toMatchObject({ outcome: 'clean', workingTree: { status: 'synced' } })
+    expect(await readFile(path.join(inputs.parentDir, 'debug.log'), 'utf8')).toBe('noise\n')
+  })
+
+  it('does not look for ignored files when no sync is requested', async () => {
+    const inputs = await createMergeInputs()
+    await writeFile(path.join(inputs.parentDir, '.gitignore'), 'new.txt\n')
+    await writeFile(path.join(inputs.parentDir, 'new.txt'), 'local\n')
+
+    const result = await commitWinnerMergeAtomically(
+      gitRun(inputs.parentDir, () => false),
+      {
+        ...inputs,
+        parentRef: 'refs/heads/parent-branch',
+        message: 'Merge',
+        syncWorkingTree: false
+      }
+    )
+
+    expect(result).toMatchObject({ outcome: 'clean' })
+  })
 })

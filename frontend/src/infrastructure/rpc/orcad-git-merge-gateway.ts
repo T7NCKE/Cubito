@@ -43,6 +43,7 @@ function toDependencySetupResult(value: unknown): ParentDependencySetupResult | 
 
 const BLOCK_REASONS: readonly MergeBlockReason[] = [
   'untracked-overwrite',
+  'ignored-overwrite',
   'dirty-parent',
   'sync-refused',
   'sync-failed'

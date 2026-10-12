@@ -10,6 +10,7 @@ export type ParentWorkingTreeSyncResult =
 
 export type MergeWinnerBlockReason =
   | 'untracked-overwrite'
+  | 'ignored-overwrite'
   | 'dirty-parent'
   | 'sync-refused'
   | 'sync-failed'
@@ -118,6 +119,20 @@ async function preflightParentSync(
   const collisions = untracked.filter((entry) => changed.some((file) => collides(file, entry)))
   if (collisions.length > 0) {
     return { outcome: 'blocked', reason: 'untracked-overwrite', paths: collisions.sort() }
+  }
+  // Why: `read-tree -u` overwrites git-ignored files silently (neither the dry run nor the
+  // untracked listing above sees them), so lost local config/env files would go unnoticed.
+  const ignored = await listPaths(run, [
+    'ls-files',
+    '--others',
+    '--ignored',
+    '--exclude-standard',
+    '--directory',
+    '-z'
+  ])
+  const ignoredCollisions = ignored.filter((entry) => changed.some((file) => collides(file, entry)))
+  if (ignoredCollisions.length > 0) {
+    return { outcome: 'blocked', reason: 'ignored-overwrite', paths: ignoredCollisions.sort() }
   }
   // Why: stat-only dirtiness makes read-tree report "not uptodate"; refresh like `git status`.
   await run(['update-index', '-q', '--refresh']).catch(() => undefined)

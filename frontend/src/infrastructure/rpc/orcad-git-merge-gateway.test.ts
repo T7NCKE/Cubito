@@ -207,6 +207,12 @@ describe('createGitMergeMethods — atomic sync outcomes', () => {
     })
   })
 
+  it('projects the ignored-overwrite reason instead of degrading it', async () => {
+    await expect(
+      resolveWith({ outcome: 'blocked', reason: 'ignored-overwrite', paths: ['.env'] })
+    ).resolves.toEqual({ outcome: 'blocked', reason: 'ignored-overwrite', paths: ['.env'] })
+  })
+
   it('maps an unknown blocked reason from a newer host to sync-refused', async () => {
     await expect(
       resolveWith({ outcome: 'blocked', reason: 'future-reason', paths: [] })

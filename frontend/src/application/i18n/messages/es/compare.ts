@@ -23,6 +23,8 @@ export const esCompare: Record<keyof typeof enCompare, string> = {
   'compare.parentSkipped': 'padre no sincronizado: tiene cambios sin commitear.',
   'compare.blocked.untracked-overwrite':
     'El padre tiene archivos que el ganador sobrescribiría — no se mergeó nada. Movelos o borralos y volvé a mergear:',
+  'compare.blocked.ignored-overwrite':
+    'El padre tiene archivos ignorados por git que el ganador sobrescribiría — no se mergeó nada. Movelos o hacé un backup y volvé a mergear:',
   'compare.blocked.dirty-parent':
     'El padre tiene cambios sin commitear en archivos que el ganador modifica — no se mergeó nada. Commitealos o guardalos con stash y volvé a mergear:',
   'compare.blocked.sync-refused': 'No se puede actualizar el worktree padre — no se mergeó nada.',

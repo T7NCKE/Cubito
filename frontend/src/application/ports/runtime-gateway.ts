@@ -233,6 +233,7 @@ export type ParentWorkingTreeSyncResult =
 /** Why a synced merge refused to start (nothing changed); unknown values arrive as sync-refused. */
 export type MergeBlockReason =
   | 'untracked-overwrite'
+  | 'ignored-overwrite'
   | 'dirty-parent'
   | 'sync-refused'
   | 'sync-failed'
