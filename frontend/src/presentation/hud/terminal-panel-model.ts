@@ -4,6 +4,7 @@ import type {
   TerminalSessionStatus,
   TerminalsState
 } from '../../application/terminal-session-model'
+import { redactSecrets } from '../../domain/secret-redaction'
 import type { WorktreeId } from '../../domain/worktree-graph/types'
 
 /** Semantic chrome tones — the DOM writer maps these to `--cubito-*` custom properties. */
@@ -39,7 +40,7 @@ export function terminalPanelModel(state: TerminalsState): TerminalPanelModel | 
 
   const tabs = tabStreamIds.map((streamId) => ({
     streamId,
-    label: state.sessions.get(streamId)?.title ?? t('terminal.fallbackTitle')
+    label: redactSecrets(state.sessions.get(streamId)?.title ?? t('terminal.fallbackTitle'))
   }))
 
   return {
@@ -47,7 +48,7 @@ export function terminalPanelModel(state: TerminalsState): TerminalPanelModel | 
     header: t('terminal.header', {
       index: panel.sessionIndex + 1,
       total: tabStreamIds.length,
-      title: activeSession.title ?? t('terminal.fallbackTitle')
+      title: redactSecrets(activeSession.title ?? t('terminal.fallbackTitle'))
     }),
     placement: panel.placement,
     focused: panel.focused,

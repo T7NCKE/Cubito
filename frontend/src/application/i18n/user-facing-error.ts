@@ -1,3 +1,4 @@
+import { redactSecrets } from '../../domain/secret-redaction'
 import type { MessageKey } from './messages/en'
 import { t } from './translate'
 
@@ -47,6 +48,6 @@ export function describeFailure(
 ): FailureMessage {
   const codeKey = CODE_LEADS[code ?? codeOf(error) ?? '']
   const lead = t(codeKey ?? `failure.action.${action}`)
-  const detail = messageOf(error).trim()
+  const detail = redactSecrets(messageOf(error).trim())
   return { lead, detail: detail === '' || detail === lead ? null : detail }
 }

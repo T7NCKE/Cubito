@@ -51,6 +51,13 @@ describe('terminalPanelModel', () => {
     expect(terminalPanelModel(state)!.header).toBe('terminal 1/1 · zsh')
   })
 
+  it('redacts capability tokens from tab labels and the header', () => {
+    const title = 'orca send --dispatch-capability dcap_0123456789abcdef'
+    const model = terminalPanelModel(stateWith([session({ title })]))!
+    expect(model.header).not.toContain('dcap_0123')
+    expect(model.tabs[0]!.label).not.toContain('dcap_0123')
+  })
+
   it('falls back to "shell" when the session has no title yet', () => {
     const state = stateWith([session()])
     expect(terminalPanelModel(state)!.header).toBe('terminal 1/1 · shell')

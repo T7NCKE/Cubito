@@ -5,6 +5,15 @@ import { describeFailure, plainFailure } from './user-facing-error'
 afterEach(() => setActiveLanguage('es'))
 
 describe('describeFailure', () => {
+  it('redacts secrets from the engine detail', () => {
+    const failure = describeFailure(
+      'workingTree',
+      new Error('failed: --token abc123 dcap_0123456789')
+    )
+    expect(failure.detail).not.toContain('abc123')
+    expect(failure.detail).not.toContain('dcap_0123')
+  })
+
   it('leads with the localized action and keeps the engine message as detail', () => {
     expect(describeFailure('workingTree', new Error('fatal: not a git repository'))).toEqual({
       lead: 'no se pudo leer el estado de git',

@@ -1,3 +1,4 @@
+import { redactSecrets } from '../../domain/secret-redaction'
 import type { FeedRow, FeedRowKind } from '../../domain/system-graph/types'
 
 export type ActivityFeedRowView = {
@@ -28,8 +29,8 @@ export function activityFeedViewModel(feed: readonly FeedRow[]): readonly Activi
     id: row.id,
     time: row.time,
     glyph: GLYPH_BY_KIND[row.kind],
-    text: row.text,
-    ...(row.detail !== undefined ? { detail: row.detail } : {}),
+    text: redactSecrets(row.text),
+    ...(row.detail !== undefined ? { detail: redactSecrets(row.detail) } : {}),
     cssClass: rowCssClass(row.kind),
     highlighted: row.highlighted ?? false
   }))

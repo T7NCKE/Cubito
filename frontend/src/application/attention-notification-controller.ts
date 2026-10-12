@@ -1,9 +1,17 @@
+import { redactSecrets } from '../domain/secret-redaction'
 import type {
   AttentionNotification,
   AttentionNotificationPort
 } from './ports/attention-notification-port'
 
 const MAX_SEEN_KEYS = 256
+
+// Why: notification text is engine-sourced and can echo commands carrying capability tokens.
+const redacted = (n: AttentionNotification): AttentionNotification => ({
+  ...n,
+  title: redactSecrets(n.title),
+  body: redactSecrets(n.body)
+})
 
 export type AttentionNotificationController = {
   /** Binds (or rebinds after a reconnect) the stream; the previous subscription is closed. */
@@ -48,7 +56,7 @@ export function createAttentionNotificationController(deps: {
       const missed = await port.getMissedSince(watermark ?? 0, epoch)
       if (ownGeneration !== generation) return
       for (const notification of missed.notifications) {
-        if (remember(notification, missed.epoch) && !silent) deps.show(notification)
+        if (remember(notification, missed.epoch) && !silent) deps.show(redacted(notification))
       }
     } catch {
       // Why: catch-up is best effort; the live stream still delivers from here on.
@@ -69,7 +77,7 @@ export function createAttentionNotificationController(deps: {
             if (frame.epoch !== null && epoch === null) epoch = frame.epoch
             return
           }
-          if (remember(frame.notification, frame.epoch)) deps.show(frame.notification)
+          if (remember(frame.notification, frame.epoch)) deps.show(redacted(frame.notification))
         },
         onUnsupported() {},
         onClosed() {}

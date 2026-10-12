@@ -42,6 +42,19 @@ function createFakePort(missed: MissedAttentionNotifications = { notifications: 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe('attention notification controller', () => {
+  it('redacts secrets from title and body before showing', async () => {
+    const show = vi.fn()
+    const controller = createAttentionNotificationController({ show })
+    const fake = createFakePort()
+    controller.bind(fake.port)
+    fake.ready()
+    await flush()
+    fake.push(note('s1', 1, { title: 'run dcap_0123456789abcdef', body: 'GITHUB_TOKEN=ghp_x1 go' }))
+    const shown = show.mock.calls[0]![0] as AttentionNotification
+    expect(shown.title).not.toContain('dcap_0123')
+    expect(shown.body).not.toContain('ghp_x1')
+  })
+
   it('shows live notifications once, deduped by id', async () => {
     const show = vi.fn()
     const fake = createFakePort()

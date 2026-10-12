@@ -13,6 +13,19 @@ describe('activityFeedViewModel', () => {
     expect(activityFeedViewModel([])).toEqual([])
   })
 
+  it('redacts secrets in text and detail', () => {
+    const [view] = activityFeedViewModel([
+      row({
+        id: 'x',
+        kind: 'run',
+        text: 'run orca send --dispatch-capability dcap_0123456789abcdef',
+        detail: 'Authorization: Bearer abc.def'
+      })
+    ])
+    expect(view!.text).not.toContain('dcap_0123')
+    expect(view!.detail).not.toContain('abc.def')
+  })
+
   it('preserves feed order', () => {
     const feed = [row({ id: 'a', kind: 'read' }), row({ id: 'b', kind: 'edit' })]
     expect(activityFeedViewModel(feed).map((r) => r.id)).toEqual(['a', 'b'])
