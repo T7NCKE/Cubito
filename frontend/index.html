@@ -901,20 +901,28 @@
       .diff-rail__row--wt {
         border-left: 2px solid var(--cubito-amber-dim);
       }
-      /* Directory truncates (from the end), the file name always stays whole. */
+      /* Directory shrinks first (down to a short prefix), then the name; stats never get overlapped. */
       .diff-rail__path {
         flex: 1;
         min-width: 0;
         display: flex;
+        overflow: hidden;
         white-space: nowrap;
       }
       .diff-rail__dir {
-        min-width: 0;
+        flex: 0 100 auto;
+        min-width: 5ch;
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      .diff-rail__dir:empty {
+        display: none;
+      }
       .diff-rail__base {
-        flex-shrink: 0;
+        flex: 0 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .diff-rail__added,
       .diff-rail__removed {
@@ -1034,7 +1042,7 @@
       .compare-rail__row {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-areas: 'label label' 'stat toggle';
+        grid-template-areas: 'label label' 'stat stat' 'toggle toggle';
         column-gap: 6px;
         row-gap: 4px;
         align-items: center;
@@ -1064,11 +1072,13 @@
       .compare-rail__stat {
         grid-area: stat;
         min-width: 0;
-        overflow-wrap: anywhere;
+        /* Wraps at spaces only, never inside a word (the old `anywhere` split "archivo|s"). */
+        overflow-wrap: normal;
         color: var(--cubito-text-faint);
       }
       .compare-rail__winner-toggle {
         grid-area: toggle;
+        justify-self: start;
         white-space: nowrap;
         background: none;
         border: 1px solid var(--cubito-panel-border);
