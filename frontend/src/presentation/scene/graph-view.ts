@@ -18,6 +18,7 @@ import type {
   LabelBox,
   LabelCandidate,
   LabelObstacle,
+  LabelRect,
   ScreenAnchor
 } from '../hud/label-collision-model'
 import { labelPriorityAt, labelRenderOrder, labelVisibleAt } from '../hud/label-visibility-model'
@@ -68,6 +69,8 @@ export type GraphView = {
   pickableObjects(): readonly THREE.Object3D[]
   /** Per-frame screen-space pass (design D3). Only ever HIDES; the height policy decides what is eligible. */
   resolveLabelOverlaps(project: LabelAnchorProjection): void
+  /** Projected screen rect of one node's cube (glow margin included); null when unknown/off-camera. */
+  nodeCubeRect(id: WorktreeId, project: LabelAnchorProjection): LabelRect | null
   dispose(): void
 }
 
@@ -279,6 +282,7 @@ export function createGraphView(
       syncEdges(input)
     },
     resolveLabelOverlaps,
+    nodeCubeRect: (id, project) => cubeObstacle(id, project)?.rect ?? null,
     tick(elapsedSeconds: number): void {
       for (const entry of nodes.values()) entry.binding.tick(elapsedSeconds)
       for (const binding of edges.values()) binding.tick(elapsedSeconds)

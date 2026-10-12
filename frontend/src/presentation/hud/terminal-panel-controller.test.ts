@@ -58,6 +58,7 @@ const createFakePanel = (): FakePanel => {
     },
     focus: vi.fn(),
     blur: vi.fn(),
+    setPlaced: vi.fn(),
     dispose() {
       panel.disposed = true
     },
@@ -113,6 +114,16 @@ const openedState = (nodeId = 'repo::/wt/a', forceNew = false): TerminalsState =
     forceNew
   })
 
+// Panel screen center = pivot-shifted position; recover it from the last center.set call.
+const placedCenter = (
+  panel: FakePanel,
+  anchor: { x: number; y: number },
+  box = { w: 520, h: 360 }
+) => {
+  const [cx, cy] = (panel.object.center.set as ReturnType<typeof vi.fn>).mock.calls.at(-1)!
+  return { x: anchor.x + (0.5 - cx) * box.w, y: anchor.y + (0.5 - cy) * box.h }
+}
+
 const setup = () => {
   const port = createFakePort()
   const panels: FakePanel[] = []
@@ -132,6 +143,7 @@ const setup = () => {
     hud,
     dispatch,
     nodeCenter: vi.fn(() => ({ x: 1, y: 2, z: 3 })),
+    cubeRect: vi.fn(() => null),
     projectToNdc: vi.fn((world) => ({ x: world.x, y: world.y, z: 0 })),
     viewport: () => ({ width: 1000, height: 800 })
   }
@@ -218,38 +230,57 @@ describe('createTerminalPanelController', () => {
     expect(panels[0]!.object.position.set).toHaveBeenCalled()
   })
 
-  it('shifts the panel pivot so a node near the left edge keeps the panel inside the viewport', async () => {
+  it('places the panel above the cube without covering it', async () => {
     const { controller, panels, deps } = setup()
-    // ndc x -0.9 -> screen x 50 on a 1000px viewport: the 520px panel would clip by 210px.
-    deps.projectToNdc = vi.fn(() => ({ x: -0.9, y: 0, z: 0 }))
-    controller.sync(openedState())
-    await flush()
-    controller.tick()
-    const [cx, cy] = (panels[0]!.object.center.set as ReturnType<typeof vi.fn>).mock.calls.at(-1)!
-    // Shift right by (260 + 12) - 50 = 222px -> pivot moves left of center by 222 / 520.
-    expect(cx).toBeCloseTo(0.5 - 222 / 520)
-    expect(cy).toBeCloseTo(0.5)
-  })
-
-  it('shifts the pivot down when the panel would clip the top edge', async () => {
-    const { controller, panels, deps } = setup()
-    // ndc y 1 -> screen y 0: shift down by (180 + 12) px on the 800px viewport.
-    deps.projectToNdc = vi.fn(() => ({ x: 0, y: 1, z: 0 }))
-    controller.sync(openedState())
-    await flush()
-    controller.tick()
-    const [, cy] = (panels[0]!.object.center.set as ReturnType<typeof vi.fn>).mock.calls.at(-1)!
-    expect(cy).toBeCloseTo(0.5 - 192 / 360)
-  })
-
-  it('leaves the pivot centered when the panel already fits', async () => {
-    const { controller, panels, deps } = setup()
+    // ndc (0,0) -> screen (500,400) on the 1000x800 viewport; cube 40px square around it.
     deps.projectToNdc = vi.fn(() => ({ x: 0, y: 0, z: 0 }))
+    const cube = { left: 480, top: 380, right: 520, bottom: 420 }
+    deps.cubeRect = vi.fn(() => cube)
     controller.sync(openedState())
     await flush()
     controller.tick()
-    const [cx] = (panels[0]!.object.center.set as ReturnType<typeof vi.fn>).mock.calls.at(-1)!
-    expect(cx).toBeCloseTo(0.5)
+    const center = placedCenter(panels[0]!, { x: 500, y: 400 })
+    expect(center.y + 180).toBeLessThanOrEqual(cube.top)
+    expect(center.x).toBeCloseTo(500)
+  })
+
+  it('keeps the panel inside the viewport for a node near the left edge', async () => {
+    const { controller, panels, deps } = setup()
+    deps.projectToNdc = vi.fn(() => ({ x: -0.9, y: 0.2, z: 0 }))
+    deps.cubeRect = vi.fn(() => ({ left: 30, top: 300, right: 70, bottom: 340 }))
+    controller.sync(openedState())
+    await flush()
+    controller.tick()
+    const center = placedCenter(panels[0]!, { x: 50, y: 320 })
+    expect(center.x - 260).toBeGreaterThanOrEqual(12 - 1e-6)
+  })
+
+  it('moves below the cube when it sits at the top edge', async () => {
+    const { controller, panels, deps } = setup()
+    deps.projectToNdc = vi.fn(() => ({ x: 0, y: 0.9, z: 0 }))
+    const cube = { left: 480, top: 20, right: 520, bottom: 60 }
+    deps.cubeRect = vi.fn(() => cube)
+    controller.sync(openedState())
+    await flush()
+    controller.tick()
+    const center = placedCenter(panels[0]!, { x: 500, y: 40 })
+    expect(center.y - 180).toBeGreaterThanOrEqual(cube.bottom)
+  })
+
+  it('stays hidden and unpositioned until the panel has been measured', async () => {
+    const { controller, panels, connector } = setup()
+    controller.sync(openedState())
+    await flush()
+    const element = panels[0]!.element as unknown as { offsetWidth: number }
+    element.offsetWidth = 0
+    controller.tick()
+    expect(panels[0]!.setPlaced).toHaveBeenLastCalledWith(false)
+    expect(panels[0]!.object.center.set).not.toHaveBeenCalled()
+    expect(connector.hideCalls).toBeGreaterThan(0)
+    element.offsetWidth = 520
+    controller.tick()
+    expect(panels[0]!.setPlaced).toHaveBeenLastCalledWith(true)
+    expect(panels[0]!.object.center.set).toHaveBeenCalled()
   })
 
   it('applies the dashed connector in scene placement and hides it in hud placement', async () => {

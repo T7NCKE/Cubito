@@ -490,6 +490,7 @@ function bindTerminals(connection: LiveSyncConnection): void {
       hud: hudElement,
       dispatch: (action) => store.dispatchTerminal(action),
       nodeCenter: (id) => graphView.nodeCenter(id),
+      cubeRect: (id) => graphView.nodeCubeRect(id, projectLabelAnchor),
       projectToNdc: projectWorldToNdc,
       viewport: () => viewportSize
     })

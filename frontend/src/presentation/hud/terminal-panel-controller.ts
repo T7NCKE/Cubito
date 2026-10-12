@@ -16,14 +16,17 @@ import type { TerminalConnectorHandle } from './terminal-connector-element'
 import { terminalPanelModel } from './terminal-panel-model'
 import type { NdcPoint } from './terminal-connector-projector'
 import { projectToScreen } from './terminal-connector-projector'
-import { clampPanelToViewport } from './terminal-panel-viewport-clamp'
+import type { LabelRect } from './label-collision-model'
+import { placeTerminalPanel } from './terminal-panel-placement'
 
 /** World-space lift above the node center the panel floats at (mirrors node-label's fixed offset). */
 const PANEL_WORLD_LIFT = 3
-/** Matches the .cubito-terminal-panel CSS size when the element hasn't been measured yet. */
-const PANEL_FALLBACK_SIZE = { width: 520, height: 360 }
 /** Keeps the in-scene panel this far from the viewport edges (the #hud inset). */
 const PANEL_VIEWPORT_MARGIN = 12
+/** Clear space between the node's cube and the panel edge. */
+const PANEL_CUBE_GAP = 10
+/** Half-size of the stand-in cube when the scene can't report its projected rect. */
+const CUBE_FALLBACK_HALF_PX = 28
 
 export type TerminalPanelControllerDeps = {
   port: TerminalStreamPort
@@ -36,6 +39,8 @@ export type TerminalPanelControllerDeps = {
   nodeCenter: (nodeId: WorktreeId) => Vec3 | null
   /** Wraps the impure THREE camera projection so tests can supply a fixed NDC point. */
   projectToNdc: (world: Vec3) => NdcPoint
+  /** Projected screen rect of a node's cube — the area the panel must not cover. */
+  cubeRect: (nodeId: WorktreeId) => LabelRect | null
   viewport: () => { width: number; height: number }
 }
 
@@ -279,29 +284,42 @@ export function createTerminalPanelController(
       const { object, element } = mounted.panel
       if (mounted.placement !== 'scene') {
         object.center.set(0.5, 0.5)
+        mounted.panel.setPlaced(true)
+        connector.hide()
+        return
+      }
+      // Why: an unattached panel measures 0 — stay hidden until the renderer has laid it out,
+      // so the first visible frame is already at its final spot.
+      if (!element.offsetWidth || !element.offsetHeight) {
+        mounted.panel.setPlaced(false)
         connector.hide()
         return
       }
       const { width, height } = deps.viewport()
       const nodeScreen = projectToScreen(deps.projectToNdc(center), width, height)
       const panelScreen = projectToScreen(deps.projectToNdc(panelWorld), width, height)
-      const size = {
-        width: element.offsetWidth || PANEL_FALLBACK_SIZE.width,
-        height: element.offsetHeight || PANEL_FALLBACK_SIZE.height
+      const size = { width: element.offsetWidth, height: element.offsetHeight }
+      const cube = deps.cubeRect(mounted.nodeId) ?? {
+        left: nodeScreen.x - CUBE_FALLBACK_HALF_PX,
+        right: nodeScreen.x + CUBE_FALLBACK_HALF_PX,
+        top: nodeScreen.y - CUBE_FALLBACK_HALF_PX,
+        bottom: nodeScreen.y + CUBE_FALLBACK_HALF_PX
       }
-      const clamped = clampPanelToViewport(
-        panelScreen,
+      const placed = placeTerminalPanel(
+        cube,
         size,
         { width, height },
-        PANEL_VIEWPORT_MARGIN
+        PANEL_VIEWPORT_MARGIN,
+        PANEL_CUBE_GAP
       )
       // Why: CSS2DObject.center is the element pivot, so moving it shifts the panel on screen
       // without touching its world position.
       object.center.set(
-        0.5 - (clamped.x - panelScreen.x) / size.width,
-        0.5 - (clamped.y - panelScreen.y) / size.height
+        0.5 - (placed.x - panelScreen.x) / size.width,
+        0.5 - (placed.y - panelScreen.y) / size.height
       )
-      connector.apply(nodeScreen, { ...panelScreen, x: clamped.x, y: clamped.y })
+      mounted.panel.setPlaced(true)
+      connector.apply(nodeScreen, { ...panelScreen, x: placed.x, y: placed.y })
     },
     dispose(): void {
       unmount()

@@ -56,6 +56,8 @@ export type TerminalPanelHandle = {
   onResize(callback: (cols: number, rows: number) => void): () => void
   focus(): void
   blur(): void
+  /** Hidden panels keep their layout (still measurable) but paint nothing. */
+  setPlaced(placed: boolean): void
   dispose(): void
 }
 
@@ -128,6 +130,9 @@ export function createTerminalPanel(onExit: () => void): TerminalPanelHandle {
     },
     focus() {
       connectedFocus.request()
+    },
+    setPlaced(placed: boolean) {
+      root.style.visibility = placed ? '' : 'hidden'
     },
     blur() {
       connectedFocus.cancel()
